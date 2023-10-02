@@ -12,6 +12,8 @@ import (
 //     should return index where we stop so caller of recursive func can skip ahead.
 //
 // block attributes and endblock tags -> inject values into DataSet
+//
+// default block... any chunk not enclosed goes into default
 
 type Block struct {
 	BlockStart          string
@@ -63,6 +65,14 @@ cool
 // Once I was **cool** I was so [cool] that I was a \cool\ boy!
 // //p
 // `
+
+// markdown attributes
+// t := `
+// //code
+// Hello, Worls!
+// //code<Language:Python>
+// `
+
 
 func main() {
 
