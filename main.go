@@ -16,11 +16,11 @@ import (
 // default block... any chunk not enclosed goes into default
 
 type Block struct {
-	BlockStart          string
+	BlockStart        string
 	BlockStop         string
 	Matching          bool
 	MatchIndex        int
-	SubBlocks            map[string]*Block
+	SubBlocks         map[string]*Block
 	InjectValues      map[string]any
 	ContentStartIndex int
 }
@@ -73,37 +73,36 @@ cool
 // //code<Language:Python>
 // `
 
-
 func main() {
 
 	p := Block{
-		BlockStart:  "//p\n",
-		BlockStop: "\n//p",
-		SubBlocks:    nil,
+		BlockStart: "//p\n",
+		BlockStop:  "\n//p",
+		SubBlocks:  nil,
 		InjectValues: map[string]any{
 			"Type": "p",
 		},
 	}
 	h1 := Block{
-		BlockStart:  "# ",
-		BlockStop: "\n",
-		SubBlocks:    nil,
+		BlockStart: "# ",
+		BlockStop:  "\n",
+		SubBlocks:  nil,
 		InjectValues: map[string]any{
 			"Type": "h1",
 		},
 	}
 	h2 := Block{
-		BlockStart:  "## ",
-		BlockStop: "\n",
-		SubBlocks:    nil,
+		BlockStart: "## ",
+		BlockStop:  "\n",
+		SubBlocks:  nil,
 		InjectValues: map[string]any{
 			"Type": "h2",
 		},
 	}
 	h3 := Block{
-		BlockStart:  "### ",
-		BlockStop: "\n",
-		SubBlocks:    nil,
+		BlockStart: "### ",
+		BlockStop:  "\n",
+		SubBlocks:  nil,
 		InjectValues: map[string]any{
 			"Type": "h3",
 		},
