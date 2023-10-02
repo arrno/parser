@@ -8,19 +8,18 @@ import (
 
 // todo
 //
-// recursion when subBlocks is not nil -> recall with remaining text with sub blocks as instruct and blockStop as fullQuit
+// recursion when subBlocks is not nil -> recall with remaining text with sub blocks as instruct and BlockStop as fullQuit
 //     should return index where we stop so caller of recursive func can skip ahead.
 //
-// block attributes and endblock tags -> inject values into article
+// block attributes and endblock tags -> inject values into DataSet
 
 type Block struct {
-	KeyStart          string
-	KeyStop           string
+	BlockStart          string
 	BlockStop         string
 	Matching          bool
 	MatchIndex        int
-	Subdir            map[string]*Block
-	TypeName          string
+	SubBlocks            map[string]*Block
+	InjectValues      map[string]any
 	ContentStartIndex int
 }
 
@@ -50,7 +49,7 @@ cool
 // - two
 // - three
 // \\ul
-// 
+//
 // \\ol
 // - one
 // - two
@@ -65,50 +64,57 @@ cool
 // //p
 // `
 
-
 func main() {
 
 	p := Block{
-		KeyStart:  "//p\n",
+		BlockStart:  "//p\n",
 		BlockStop: "\n//p",
-		Subdir:    nil,
-		TypeName:  "p",
+		SubBlocks:    nil,
+		InjectValues: map[string]any{
+			"Type": "p",
+		},
 	}
 	h1 := Block{
-		KeyStart:  "# ",
+		BlockStart:  "# ",
 		BlockStop: "\n",
-		Subdir:    nil,
-		TypeName:  "h1",
+		SubBlocks:    nil,
+		InjectValues: map[string]any{
+			"Type": "h1",
+		},
 	}
 	h2 := Block{
-		KeyStart:  "## ",
+		BlockStart:  "## ",
 		BlockStop: "\n",
-		Subdir:    nil,
-		TypeName:  "h2",
+		SubBlocks:    nil,
+		InjectValues: map[string]any{
+			"Type": "h2",
+		},
 	}
 	h3 := Block{
-		KeyStart:  "### ",
+		BlockStart:  "### ",
 		BlockStop: "\n",
-		Subdir:    nil,
-		TypeName:  "h3",
+		SubBlocks:    nil,
+		InjectValues: map[string]any{
+			"Type": "h3",
+		},
 	}
 
-	instruct := []*Block{&h1, &h2, &h3, &p}
+	instructions := []*Block{&h1, &h2, &h3, &p}
 	fullQuit := "//e"
-	Article, _ := doParse(instruct, md, fullQuit)
-	r, _ := json.MarshalIndent(Article, "", "    ")
+	DataSet, _ := doParse(instructions, md, fullQuit)
+	r, _ := json.MarshalIndent(DataSet, "", "    ")
 	fmt.Println(string(r))
 }
 
 func doParse(instructions []*Block, text string, fullQuit string) ([]map[string]any, int) {
-	
-	Article := []map[string]any{}
+
+	dataSet := []map[string]any{}
 	fullQuitMatch := 0
 	var activeBlock *Block
 	var index int
-	
-	blockIsActive := func (block *Block) bool {
-		return reflect.DeepEqual(activeBlock, block) 
+
+	blockIsActive := func(block *Block) bool {
+		return reflect.DeepEqual(activeBlock, block)
 	}
 
 	var candidateBlock *Block = nil
@@ -125,36 +131,38 @@ func doParse(instructions []*Block, text string, fullQuit string) ([]map[string]
 		}
 
 		for _, block := range instructions {
-			
+
 			// when an active block is selected
-			if activeBlock != nil && !blockIsActive(block){
+			if activeBlock != nil && !blockIsActive(block) {
 				continue
 			} else if activeBlock != nil && block.ContentStartIndex == 0 {
 				block.ContentStartIndex = i
 			}
 			if blockIsActive(block) && len([]rune(block.BlockStop)) == (block.MatchIndex+1) && []rune(block.BlockStop)[block.MatchIndex] == char {
-				// append to Article
+				// append to DataSet
 				data := map[string]any{
-					"Type":    block.TypeName,
 					"Content": string([]rune(md[block.ContentStartIndex:(i - (len([]rune(block.BlockStop)) - 1))])),
 				}
-				// if there are subblocks, recur against remaining string with subblocks as instruct and blockStop as fullQuit
+				for k, v := range block.InjectValues {
+					data[k] = v
+				}
+				// if there are subblocks, recur against remaining string with subblocks as instruct and BlockStop as fullQuit
 				// then add result as content and skip ahead to returned index
-				Article = append(Article, data)
+				dataSet = append(dataSet, data)
 				activeBlock = nil
 				resetBlocks(instructions, nil)
 			} else if blockIsActive(block) && len([]rune(block.BlockStop)) > block.MatchIndex && []rune(block.BlockStop)[block.MatchIndex] == char {
 				block.MatchIndex++
-			} 
+			}
 			if activeBlock != nil {
 				continue
 			}
 
 			// When an active block is not selected yet
-			if len([]rune(block.KeyStart)) > block.MatchIndex && []rune(block.KeyStart)[block.MatchIndex] == char {
+			if len([]rune(block.BlockStart)) > block.MatchIndex && []rune(block.BlockStart)[block.MatchIndex] == char {
 				block.Matching = true
 				block.MatchIndex++
-				if (block.MatchIndex == len([]rune(block.KeyStart))) && (candidateBlock == nil || block.MatchIndex > candidateBlock.MatchIndex) {
+				if (block.MatchIndex == len([]rune(block.BlockStart))) && (candidateBlock == nil || block.MatchIndex > candidateBlock.MatchIndex) {
 					candidateBlock = block
 				}
 			}
@@ -166,7 +174,7 @@ func doParse(instructions []*Block, text string, fullQuit string) ([]map[string]
 		}
 		index++
 	}
-	return Article, index
+	return dataSet, index
 }
 
 func resetBlocks(blocks []*Block, exclude *Block) {
