@@ -4,16 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"strings"
 )
 
 // todo
 //
 // recursion when subBlocks is not nil -> recall with remaining text with sub blocks as instruct and BlockStop as fullQuit
 //     should return index where we stop so caller of recursive func can skip ahead.
-//
-// block attributes and endblock tags -> inject values into DataSet
-//
-// default block... any chunk not enclosed goes into default
 
 type Block struct {
 	BlockStart        string
@@ -25,24 +22,28 @@ type Block struct {
 	ContentStartIndex int
 }
 
-var md string = `### H
-# H
-## H
-### H
-## H
-# H
-## H
-## H
+// var md string = `### H
+// # H
+// ## H
+// ### H
+// ## H
+// # H
+// ## H
+// ## H
 
-//p
-one I was a cool
-man who was a cool man
-cool
-//p
+// //p
+// one I was a cool
+// man who was a cool man
+// cool
+// //p
 
-//e
-## I will be cut out
-`
+// //code-Go
+// fmt.Println("Hello")
+// //code
+
+// //e
+// ## I will be cut out
+// `
 
 // lists
 // t := `
@@ -59,12 +60,7 @@ cool
 // \\ol
 // `
 
-// inlinep
-// t := `
-// //p
-// Once I was **cool** I was so [cool] that I was a \cool\ boy!
-// //p
-// `
+var inlinep string = `Once I was **cool** I was so [[cool]] that I was a __cool__ boy!`
 
 // markdown attributes
 // t := `
@@ -107,15 +103,56 @@ func main() {
 			"Type": "h3",
 		},
 	}
+	goCode := Block{
+		BlockStart: "//code-Go\n",
+		BlockStop:  "\n//code",
+		SubBlocks:  nil,
+		InjectValues: map[string]any{
+			"Type": "code",
+			"Language": "Go",
+		},
+	}
+	bold := Block{
+		BlockStart: "**",
+		BlockStop:  "**",
+		SubBlocks:  nil,
+		InjectValues: map[string]any{
+			"Type": "b",
+		},
+	}
+	italics := Block{
+		BlockStart: "__",
+		BlockStop:  "__",
+		SubBlocks:  nil,
+		InjectValues: map[string]any{
+			"Type": "i",
+		},
+	}
+	inlineCode := Block{
+		BlockStart: "[[",
+		BlockStop:  "]]",
+		SubBlocks:  nil,
+		InjectValues: map[string]any{
+			"Type": "code",
+		},
+	}
+	span := Block{
+		BlockStart: "<span>",
+		BlockStop:  "</span>",
+		SubBlocks:  nil,
+		InjectValues: map[string]any{
+			"Type": "span",
+		},
+	}
 
-	instructions := []*Block{&h1, &h2, &h3, &p}
+	instructions := []*Block{&h1, &h2, &h3, &p, &goCode, &bold, &italics, &inlineCode}
 	fullQuit := "//e"
-	DataSet, _ := doParse(instructions, md, fullQuit)
+	DataSet, _ := doParse(instructions, inlinep, fullQuit, &span)
 	r, _ := json.MarshalIndent(DataSet, "", "    ")
 	fmt.Println(string(r))
 }
 
-func doParse(instructions []*Block, text string, fullQuit string) ([]map[string]any, int) {
+func doParse(instructions []*Block, text string, fullQuit string, defaultBlock *Block) ([]map[string]any, int) {
 
 	dataSet := []map[string]any{}
 	fullQuitMatch := 0
@@ -126,8 +163,10 @@ func doParse(instructions []*Block, text string, fullQuit string) ([]map[string]
 		return reflect.DeepEqual(activeBlock, block)
 	}
 
+	nonMatchStart := 0
 	var candidateBlock *Block = nil
-	for i, char := range md {
+
+	for i, char := range text {
 
 		// handle for recursion
 		if []rune(fullQuit)[fullQuitMatch] == char {
@@ -150,7 +189,7 @@ func doParse(instructions []*Block, text string, fullQuit string) ([]map[string]
 			if blockIsActive(block) && len([]rune(block.BlockStop)) == (block.MatchIndex+1) && []rune(block.BlockStop)[block.MatchIndex] == char {
 				// append to DataSet
 				data := map[string]any{
-					"Content": string([]rune(md[block.ContentStartIndex:(i - (len([]rune(block.BlockStop)) - 1))])),
+					"Content": string([]rune(text)[block.ContentStartIndex:(i - (len([]rune(block.BlockStop)) - 1))]),
 				}
 				for k, v := range block.InjectValues {
 					data[k] = v
@@ -160,6 +199,7 @@ func doParse(instructions []*Block, text string, fullQuit string) ([]map[string]
 				dataSet = append(dataSet, data)
 				activeBlock = nil
 				resetBlocks(instructions, nil)
+				nonMatchStart = i + 1
 			} else if blockIsActive(block) && len([]rune(block.BlockStop)) > block.MatchIndex && []rune(block.BlockStop)[block.MatchIndex] == char {
 				block.MatchIndex++
 			}
@@ -180,10 +220,50 @@ func doParse(instructions []*Block, text string, fullQuit string) ([]map[string]
 			activeBlock = candidateBlock
 			candidateBlock = nil
 			resetBlocks(instructions, activeBlock)
+			nonMatchEnd := (i+1) - len(activeBlock.BlockStart) 
+			if nonMatchEnd - nonMatchStart > 0 && defaultBlock != nil {
+				data := map[string]any{
+					"Content": string([]rune(text)[nonMatchStart:nonMatchEnd]),
+				}
+				for k, v := range defaultBlock.InjectValues {
+					data[k] = v
+				}
+				dataSet = append(dataSet, data)
+			}
 		}
 		index++
 	}
+	// remainder
+	if nonMatchStart < len([]rune(text)) && defaultBlock != nil {
+		data := map[string]any{
+			"Content": string([]rune(text)[nonMatchStart:len([]rune(text))]),
+		}
+		for k, v := range defaultBlock.InjectValues {
+			data[k] = v
+		}
+		dataSet = append(dataSet, data)
+	}
 	return dataSet, index
+}
+
+// An idea
+func parseStopKeys(blockStop string) map[string]string {
+	resp := map[string]string{}
+	keySlice := strings.Split(blockStop, "<")
+	if len(keySlice) < 2 {
+		return resp
+	}
+	// in case "<" is a char in the actual content
+	keyString := strings.Join(keySlice[1:], "<")
+	if []rune(keyString)[len(blockStop)-1] == '>' {
+		keyPairs := strings.Split(string([]rune(keyString)[:len(keyString)-1]), ",")
+		for _, keyPair := range keyPairs {
+			if keyVal := strings.Split(keyPair, ":"); len(keyVal) == 2 {
+				resp[strings.TrimSpace(keyVal[0])] = strings.TrimSpace(keyVal[1])
+			}
+		}
+	}
+	return resp
 }
 
 func resetBlocks(blocks []*Block, exclude *Block) {
