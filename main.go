@@ -7,43 +7,44 @@ import (
 	"strings"
 )
 
-// todo
-//
-// recursion when subBlocks is not nil -> recall with remaining text with sub blocks as instruct and BlockStop as fullQuit
-//     should return index where we stop so caller of recursive func can skip ahead.
 
 type Block struct {
 	BlockStart        string
 	BlockStop         string
 	Matching          bool
 	MatchIndex        int
-	SubBlocks         map[string]*Block
+	SubBlocks         []*Block
+	SubDefaultBlock *Block
 	InjectValues      map[string]any
 	ContentStartIndex int
 }
 
-// var md string = `### H
-// # H
-// ## H
-// ### H
-// ## H
-// # H
-// ## H
-// ## H
+var md string = `### H
+# H
+## H
+### H
+## H
+# H
+## H
+## H
 
-// //p
-// one I was a cool
-// man who was a cool man
-// cool
-// //p
+//p
+one I was a cool
+man who was a cool man
+cool
+//p
 
-// //code-Go
-// fmt.Println("Hello")
-// //code
+//inlinep
+Once I was **cool** I was so [[cool]] that I was a __cool__ boy!
+//inlinep
 
-// //e
-// ## I will be cut out
-// `
+//code-Go
+fmt.Println("Hello")
+//code
+
+//e
+## I will be cut out
+`
 
 // lists
 // t := `
@@ -52,21 +53,12 @@ type Block struct {
 // - two
 // - three
 // \\ul
-//
+
 // \\ol
 // - one
 // - two
 // - three
 // \\ol
-// `
-
-var inlinep string = `Once I was **cool** I was so [[cool]] that I was a __cool__ boy!`
-
-// markdown attributes
-// t := `
-// //code
-// Hello, Worls!
-// //code<Language:Python>
 // `
 
 func main() {
@@ -144,10 +136,23 @@ func main() {
 			"Type": "span",
 		},
 	}
+	inlinep := Block{
+		BlockStart: "//inlinep\n",
+		BlockStop:  "\n//inlinep",
+		SubBlocks:  []*Block{
+			&bold,
+			&italics,
+			&inlineCode,
+		},
+		SubDefaultBlock: &span,
+		InjectValues: map[string]any{
+			"Type": "inlinep",
+		},
+	}
 
-	instructions := []*Block{&h1, &h2, &h3, &p, &goCode, &bold, &italics, &inlineCode}
+	instructions := []*Block{&h1, &h2, &h3, &p, &goCode, &inlinep}
 	fullQuit := "//e"
-	DataSet, _ := doParse(instructions, inlinep, fullQuit, &span)
+	DataSet, _ := doParse(instructions, md, fullQuit, nil)
 	r, _ := json.MarshalIndent(DataSet, "", "    ")
 	fmt.Println(string(r))
 }
@@ -165,8 +170,10 @@ func doParse(instructions []*Block, text string, fullQuit string, defaultBlock *
 
 	nonMatchStart := 0
 	var candidateBlock *Block = nil
+	skipTo := 0
 
 	for i, char := range text {
+		index++
 
 		// handle for recursion
 		if []rune(fullQuit)[fullQuitMatch] == char {
@@ -180,7 +187,28 @@ func doParse(instructions []*Block, text string, fullQuit string, defaultBlock *
 
 		for _, block := range instructions {
 
+			if skipTo > i {
+				continue
+			}
+
 			// when an active block is selected
+			if blockIsActive(block) && block.SubBlocks != nil {
+				var content []map[string]any
+				var skipBy int
+				content, skipBy = doParse(block.SubBlocks, string([]rune(text)[i:len([]rune(text))]), block.BlockStop, block.SubDefaultBlock)
+				skipTo = i + skipBy
+				data := map[string]any{
+					"Content": content,
+				}
+				for k, v := range block.InjectValues {
+					data[k] = v
+				}
+				dataSet = append(dataSet, data)
+				activeBlock = nil
+				resetBlocks(instructions, nil)
+				nonMatchStart = i + 1
+				continue
+			}
 			if activeBlock != nil && !blockIsActive(block) {
 				continue
 			} else if activeBlock != nil && block.ContentStartIndex == 0 {
@@ -231,12 +259,12 @@ func doParse(instructions []*Block, text string, fullQuit string, defaultBlock *
 				dataSet = append(dataSet, data)
 			}
 		}
-		index++
 	}
 	// remainder
 	if nonMatchStart < len([]rune(text)) && defaultBlock != nil {
 		data := map[string]any{
-			"Content": string([]rune(text)[nonMatchStart:len([]rune(text))]),
+			// this currently includes the quitTag...
+			"Content": string([]rune(text)[nonMatchStart:index]),
 		}
 		for k, v := range defaultBlock.InjectValues {
 			data[k] = v
