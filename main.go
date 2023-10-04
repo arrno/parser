@@ -169,6 +169,7 @@ func doParse(instructions []*Block, text string, fullQuit string, defaultBlock *
 
 	nonMatchStart := 0
 	var candidateBlock *Block = nil
+	killSwitch := false
 	skipTo := 0
 
 	for i, char := range text {
@@ -181,6 +182,7 @@ func doParse(instructions []*Block, text string, fullQuit string, defaultBlock *
 			fullQuitMatch = 0
 		}
 		if len([]rune(fullQuit)) == fullQuitMatch {
+			killSwitch = true
 			break
 		}
 
@@ -260,9 +262,12 @@ func doParse(instructions []*Block, text string, fullQuit string, defaultBlock *
 	}
 	// remainder
 	if nonMatchStart < len([]rune(text)) && defaultBlock != nil {
+		endIndex := index
+		if killSwitch {
+			endIndex -= len([]rune(fullQuit))
+		}
 		data := map[string]any{
-			// TODO this currently includes the quitTag...
-			"Content": string([]rune(text)[nonMatchStart:index]),
+			"Content": string([]rune(text)[nonMatchStart:endIndex]),
 		}
 		for k, v := range defaultBlock.InjectValues {
 			data[k] = v
