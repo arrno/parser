@@ -193,6 +193,7 @@ func doParse(instructions []*Block, text string, fullQuit string, defaultBlock *
 
 			// when an active block is selected
 			if blockIsActive(block) && block.SubBlocks != nil {
+				// recursion case
 				var content []map[string]any
 				var skipBy int
 				content, skipBy = doParse(block.SubBlocks, string([]rune(text)[i:len([]rune(text))]), block.BlockStop, block.SubDefaultBlock)
@@ -222,8 +223,6 @@ func doParse(instructions []*Block, text string, fullQuit string, defaultBlock *
 				for k, v := range block.InjectValues {
 					data[k] = v
 				}
-				// if there are subblocks, recur against remaining string with subblocks as instruct and BlockStop as fullQuit
-				// then add result as content and skip ahead to returned index
 				dataSet = append(dataSet, data)
 				activeBlock = nil
 				resetBlocks(instructions, nil)
@@ -263,7 +262,7 @@ func doParse(instructions []*Block, text string, fullQuit string, defaultBlock *
 	// remainder
 	if nonMatchStart < len([]rune(text)) && defaultBlock != nil {
 		data := map[string]any{
-			// this currently includes the quitTag...
+			// TODO this currently includes the quitTag...
 			"Content": string([]rune(text)[nonMatchStart:index]),
 		}
 		for k, v := range defaultBlock.InjectValues {
