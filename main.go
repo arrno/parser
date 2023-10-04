@@ -7,14 +7,13 @@ import (
 	"strings"
 )
 
-
 type Block struct {
 	BlockStart        string
 	BlockStop         string
 	Matching          bool
 	MatchIndex        int
 	SubBlocks         []*Block
-	SubDefaultBlock *Block
+	SubDefaultBlock   *Block
 	InjectValues      map[string]any
 	ContentStartIndex int
 }
@@ -100,7 +99,7 @@ func main() {
 		BlockStop:  "\n//code",
 		SubBlocks:  nil,
 		InjectValues: map[string]any{
-			"Type": "code",
+			"Type":     "code",
 			"Language": "Go",
 		},
 	}
@@ -139,7 +138,7 @@ func main() {
 	inlinep := Block{
 		BlockStart: "//inlinep\n",
 		BlockStop:  "\n//inlinep",
-		SubBlocks:  []*Block{
+		SubBlocks: []*Block{
 			&bold,
 			&italics,
 			&inlineCode,
@@ -247,8 +246,8 @@ func doParse(instructions []*Block, text string, fullQuit string, defaultBlock *
 			activeBlock = candidateBlock
 			candidateBlock = nil
 			resetBlocks(instructions, activeBlock)
-			nonMatchEnd := (i+1) - len(activeBlock.BlockStart) 
-			if nonMatchEnd - nonMatchStart > 0 && defaultBlock != nil {
+			nonMatchEnd := (i + 1) - len(activeBlock.BlockStart)
+			if nonMatchEnd-nonMatchStart > 0 && defaultBlock != nil {
 				data := map[string]any{
 					"Content": string([]rune(text)[nonMatchStart:nonMatchEnd]),
 				}
