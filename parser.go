@@ -5,10 +5,12 @@ import (
 	"strings"
 )
 
+// MarkupParser is something that is able to parse markup text into structured data.
 type MarkupParser interface {
 	DoParse(markup string) []map[string]any
 }
 
+// Block is a single markup parsing instruction. A block can have nested sub blocks.
 type Block struct {
 	BlockStart        string
 	BlockStop         string
@@ -20,11 +22,13 @@ type Block struct {
 	ContentStartIndex int
 }
 
+// Parser implements MarkupParser interface
 type Parser struct {
 	instructions []*Block
 	defaultBlock *Block
 }
 
+// NewParser creates a new Parser and returns a pointer to it.
 func NewParser(instructions []*Block, defaultBlock *Block) *Parser {
 	if instructions == nil {
 		instructions = DefaultInstructions
@@ -36,11 +40,13 @@ func NewParser(instructions []*Block, defaultBlock *Block) *Parser {
 	return &p
 }
 
+// DoParse will parse the input markup text into structured data.
 func (p *Parser) DoParse(markup string) []map[string]any {
 	data, _ := p.handleParse(p.instructions, markup, "//!end!//", p.defaultBlock)
 	return data
 }
 
+// handleParse is a recursive function that executes the parsing argorithm.
 func (p *Parser) handleParse(instructions []*Block, markup, fullQuit string, defaultBlock *Block) ([]map[string]any, int) {
 
 	dataSet := []map[string]any{}

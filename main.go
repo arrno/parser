@@ -28,7 +28,7 @@ Once I was **cool** I was so [[cool]] that I was a __cool__ boy!
 fmt.Println("Hello")
 //code
 
-//e
+//!end!//
 ## I will be cut out
 `
 
