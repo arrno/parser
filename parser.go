@@ -312,4 +312,38 @@ var DefaultInstructions []*Block = []*Block{
 			"Type": "inlinep",
 		},
 	},
+	{
+		BlockStart: "//ul\n",
+		BlockStop:  "\n//ul",
+		SubBlocks: []*Block{
+			{
+				BlockStart: "- ",
+				BlockStop:  "\n",
+				SubBlocks:  nil,
+				InjectValues: map[string]any{
+					"Type": "li",
+				},
+			},
+		},
+		InjectValues: map[string]any{
+			"Type": "ul",
+		},
+	},
+	{
+		BlockStart: "//ol\n",
+		BlockStop:  "\n//ol",
+		SubBlocks: []*Block{
+			{
+				BlockStart: "- ",
+				BlockStop:  "\n",
+				SubBlocks:  nil,
+				InjectValues: map[string]any{
+					"Type": "li",
+				},
+			},
+		},
+		InjectValues: map[string]any{
+			"Type": "ol",
+		},
+	},
 }
