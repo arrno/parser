@@ -6,9 +6,8 @@ import (
 )
 
 func main() {
-	md := "//p\nHello, World!\n//p"
 	parser := NewParser(nil, nil)
-	DataSet := parser.DoParse(md)
+	DataSet := parser.DoParse("//p\nHello, World!\n//p")
 	r, _ := json.MarshalIndent(DataSet, "", "    ")
 	fmt.Println(string(r))
 }
