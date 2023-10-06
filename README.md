@@ -74,7 +74,7 @@ var instructions []*Block = []*Block{
 		},
 		InjectValues: map[string]any{
 			"Type": "inlinep",
-            "Dynamic": "Inject whatever you want!"
+			"Dynamic": "Inject whatever you want!"
 		},
 	},
 }
