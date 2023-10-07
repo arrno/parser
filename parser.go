@@ -63,8 +63,9 @@ func (p *Parser) handleParse(instructions []*Block, markup, fullQuit string, def
 	killSwitch := false
 	skipTo := 0
 
-	for i, char := range markup {
+	for _, char := range markup {
 		index++
+		i := index - 1
 
 		// handle for recursion
 		if []rune(fullQuit)[fullQuitMatch] == char {
