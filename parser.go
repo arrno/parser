@@ -157,13 +157,15 @@ func (p *Parser) handleParse(instructions []*Block, markup, fullQuit string, def
 		if killSwitch {
 			endIndex -= len([]rune(fullQuit))
 		}
-		data := map[string]any{
-			"Content": string([]rune(markup)[nonMatchStart:endIndex]),
+		if nonMatchStart < endIndex {
+			data := map[string]any{
+				"Content": string([]rune(markup)[nonMatchStart:endIndex]),
+			}
+			for k, v := range defaultBlock.InjectValues {
+				data[k] = v
+			}
+			dataSet = append(dataSet, data)
 		}
-		for k, v := range defaultBlock.InjectValues {
-			data[k] = v
-		}
-		dataSet = append(dataSet, data)
 	}
 	return dataSet, index
 }

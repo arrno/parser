@@ -54,6 +54,13 @@ fmt.Println("Hello")
 ## I will be cut out
 `
 
+// TODO
+// //code-jsx
+// <p>
+//     The brown <b>fox</b> jumps <code>over</code> the <em>lazy<em> dog.
+// </p>
+// //code
+
 var expectedJson string = `[
     {
         "Content": "H",

@@ -1,0 +1,1 @@
+for a tag, we need dynamic injectValues. Take blockstop with any remainder text before space and parse it for key/values. If we do a successful parse, skip ahead by key/value length.
