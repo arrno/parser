@@ -12,6 +12,9 @@ func TestParse(t *testing.T) {
 	DataSet := parser.DoParse(md)
 	r, _ := json.MarshalIndent(DataSet, "", "    ")
 	assert.Equal(t, expectedJson, string(r))
+	DataSet = parser.DoParse(txtCode)
+	r, _ = json.MarshalIndent(DataSet, "", "    ")
+	assert.Equal(t, expectedCode, string(r))
 }
 
 var md string = `
@@ -53,13 +56,6 @@ fmt.Println("Hello")
 //!end!//
 ## I will be cut out
 `
-
-// TODO
-// //code-jsx
-// <p>
-//     The brown <b>fox</b> jumps <code>over</code> the <em>lazy<em> dog.
-// </p>
-// //code
 
 var expectedJson string = `[
     {
@@ -169,5 +165,20 @@ var expectedJson string = `[
             }
         ],
         "Type": "ol"
+    }
+]`
+
+var txtCode string = `
+//code-Go
+<p>
+    The brown <b>fox</b> jumps <code>over</code> the <em>lazy</em> dog.
+</p>
+//code
+`
+var expectedCode string = `[
+    {
+        "Content": "\u003cp\u003e\n    The brown \u003cb\u003efox\u003c/b\u003e jumps \u003ccode\u003eover\u003c/code\u003e the \u003cem\u003elazy\u003c/em\u003e dog.\n\u003c/p\u003e",
+        "Language": "Go",
+        "Type": "code"
     }
 ]`

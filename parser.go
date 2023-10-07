@@ -121,6 +121,8 @@ func (p *Parser) handleParse(instructions []*Block, markup, fullQuit string, def
 				nonMatchStart = i + 1
 			} else if blockIsActive(block) && len([]rune(block.BlockStop)) > block.MatchIndex && []rune(block.BlockStop)[block.MatchIndex] == char {
 				block.MatchIndex++
+			} else if (blockIsActive(block)) {
+				block.MatchIndex = 0
 			}
 			if activeBlock != nil {
 				continue
