@@ -1,5 +1,5 @@
-# Markdown parser for GO!
-This markdown parser makes it easy to quickly define your own markup rules so you can write effortlessly and convert your content into hierarchical structured data.
+# Markup parser for GO!
+This markup parser makes it easy to quickly define your own markup rules so you can write effortlessly and convert your content into hierarchical structured data.
 ## Define a set of parser rule blocks
 Define a set of custom rules then use it to instantiate a parser. This example shows a set of instructions with one rule but you can add as many rule blocks as you like.
 ```Go
@@ -124,6 +124,7 @@ parser := NewParser(nestedInstructions, nil)
 //             }
 //         ],
 //         "Type": "inlinep"
+//         "Dynamic": "Inject whatever you want!"
 //     }
 // ]
 ```
