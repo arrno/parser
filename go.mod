@@ -1,4 +1,4 @@
-module parser
+module github.com/arrno/parser
 
 go 1.19
 

@@ -1,4 +1,4 @@
-package main
+package parser
 
 import (
 	"encoding/json"
@@ -11,11 +11,29 @@ func TestParse(t *testing.T) {
 	parser := NewParser(nil, nil)
 	DataSet := parser.DoParse(md)
 	r, _ := json.MarshalIndent(DataSet, "", "    ")
-	assert.Equal(t, expectedJson, string(r))
-	DataSet = parser.DoParse(txtCode)
+	assert.Equal(t, mdExpected, string(r))
+	DataSet = parser.DoParse(quitTagSeparated)
 	r, _ = json.MarshalIndent(DataSet, "", "    ")
-	assert.Equal(t, expectedCode, string(r))
+	assert.Equal(t, quitTagSeparatedExpected, string(r))
+	DataSet = parser.DoParse(withEmoji)
+	r, _ = json.MarshalIndent(DataSet, "", "    ")
+	assert.Equal(t, withEmojiExpected, string(r))
 }
+
+var withEmoji string = `
+## Overview
+# ✨ Hello and welcome!
+`
+var withEmojiExpected string = `[
+    {
+        "Content": "Overview",
+        "Type": "h2"
+    },
+    {
+        "Content": "✨ Hello and welcome!",
+        "Type": "h1"
+    }
+]`
 
 var md string = `
 ### H
@@ -57,7 +75,7 @@ fmt.Println("Hello")
 ## I will be cut out
 `
 
-var expectedJson string = `[
+var mdExpected string = `[
     {
         "Content": "H",
         "Type": "h3"
@@ -168,14 +186,14 @@ var expectedJson string = `[
     }
 ]`
 
-var txtCode string = `
+var quitTagSeparated string = `
 //code-Go
 <p>
     The brown <b>fox</b> jumps <code>over</code> the <em>lazy</em> dog.
 </p>
 //code
 `
-var expectedCode string = `[
+var quitTagSeparatedExpected string = `[
     {
         "Content": "\u003cp\u003e\n    The brown \u003cb\u003efox\u003c/b\u003e jumps \u003ccode\u003eover\u003c/code\u003e the \u003cem\u003elazy\u003c/em\u003e dog.\n\u003c/p\u003e",
         "Language": "Go",
