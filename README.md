@@ -145,7 +145,7 @@ Sometimes you need to inject dynamic attributes at the individual tag level like
 // 	},
 // }
 
-text := `<a>A link with dynamic attributes!</a>::[ href: www.example.com, dynamic: value]`
+text := `<a>A link with dynamic attributes!</a>::[ href: www.example.com, dynamic: value ]`
 
 parser := NewParser(linkInstructions, nil)
 data := parser.DoParse(text)
