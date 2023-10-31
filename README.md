@@ -132,7 +132,7 @@ fmt.Println(string(r))
 // ]
 ```
 ## Inject dynamic attributes
-Sometimes you need to inject dynamic attributes at the individual tag level like for an `HTML` `href` or `img src`. To do this, immediately preceed a closing tag with `::` followed by the key pairs within brackets and separated by commas as shown below:
+Sometimes you need to inject dynamic attributes at the individual tag level like for an `HTML` `href` or `img src`. To do this, immediately precede a closing tag with `::` followed by the key pairs within brackets and separated by commas as shown below:
 
 ```Go
 // assume we have defined a rule such as:
