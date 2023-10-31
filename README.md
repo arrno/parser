@@ -17,6 +17,7 @@ var instructions []*Block = []*Block{
 parser := NewParser(instructions, nil)
 ```
 ## Parse your own markup language
+Use your custom rules to parse text into structured data.
 ```Go
 data := parser.DoParse("//p\nHello, World!\n//p")
 r, _ := json.MarshalIndent(data, "", "    ")
