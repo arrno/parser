@@ -147,7 +147,7 @@ Sometimes you need to inject dynamic attributes at the individual tag level like
 
 text := `<a>A link with dynamic attributes!</a>::[ href: www.example.com, dynamic: value]`
 
-parser := NewParser(nestedInstructions, nil)
+parser := NewParser(linkInstructions, nil)
 data := parser.DoParse(text)
 r, _ := json.MarshalIndent(data, "", "    ")
 fmt.Println(string(r))
