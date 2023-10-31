@@ -2,6 +2,7 @@ package parser
 
 import (
 	"encoding/json"
+	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -19,6 +20,103 @@ func TestParse(t *testing.T) {
 	r, _ = json.MarshalIndent(DataSet, "", "    ")
 	assert.Equal(t, withEmojiExpected, string(r))
 }
+
+func TestMapKeys(t *testing.T) {
+	parser := NewParser(nil, nil)
+	result, parsed := parser.ParseMapKeys("::[ one: a, two: ✨blue, three: FuNtImE! ] nothing else matters!")
+	expected := map[string]string{"one": "a", "two": "✨blue", "three": "FuNtImE!"}
+	assert.Equal(t, parsed, 41)
+	assert.True(t, reflect.DeepEqual(result, expected))
+	result, parsed = parser.ParseMapKeys("hello!")
+	assert.Equal(t, parsed, 0)
+}
+
+func TestParseMapKeys(t *testing.T) {
+	parser := NewParser(nil, nil)
+	DataSet := parser.DoParse(withMapKeys)
+	r, _ := json.MarshalIndent(DataSet, "", "    ")
+	assert.Equal(t, withMapKeysExpected, string(r))
+}
+
+var withMapKeys string = `
+//p
+one paragraph
+//p::[special:value, injected: true]
+//p
+a second paragraph
+//p::[one: blue]
+
+//inlinep
+Once I was **cool**::[inject: me] I was so [[cool]] that I was a __cool cat!__::[inject: end]
+//inlinep::[nested: inject]
+
+//inlinep
+hello, **world**::[ inject: me ] !!!
+//inlinep
+`
+var withMapKeysExpected string = `[
+    {
+        "Content": "one paragraph",
+        "Type": "p",
+        "injected": "true",
+        "special": "value"
+    },
+    {
+        "Content": "a second paragraph",
+        "Type": "p",
+        "one": "blue"
+    },
+    {
+        "Content": [
+            {
+                "Content": "Once I was ",
+                "Type": "span"
+            },
+            {
+                "Content": "cool",
+                "Type": "b",
+                "inject": "me"
+            },
+            {
+                "Content": " I was so ",
+                "Type": "span"
+            },
+            {
+                "Content": "cool",
+                "Type": "code"
+            },
+            {
+                "Content": " that I was a ",
+                "Type": "span"
+            },
+            {
+                "Content": "cool cat!",
+                "Type": "i",
+                "inject": "end"
+            }
+        ],
+        "Type": "inlinep",
+        "nested": "inject"
+    },
+    {
+        "Content": [
+            {
+                "Content": "hello, ",
+                "Type": "span"
+            },
+            {
+                "Content": "world",
+                "Type": "b",
+                "inject": "me"
+            },
+            {
+                "Content": " !!!",
+                "Type": "span"
+            }
+        ],
+        "Type": "inlinep"
+    }
+]`
 
 var withEmoji string = `
 ## Overview

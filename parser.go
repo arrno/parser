@@ -8,6 +8,7 @@ import (
 // MarkupParser is something that is able to parse markup text into structured data.
 type MarkupParser interface {
 	DoParse(markup string) []map[string]any
+	ParseMapKeys(text string) (result map[string]string, parsed int)
 }
 
 // Block is a single markup parsing instruction. A block can have nested sub blocks.
@@ -97,10 +98,17 @@ func (p *Parser) handleParse(instructions []*Block, markup, fullQuit string, def
 				for k, v := range block.InjectValues {
 					data[k] = v
 				}
+				keyVals, parsed := p.ParseMapKeys(markup[min(skipTo, len([]rune(markup))-1):])
+				if parsed > 0 {
+					skipTo += parsed
+					for k, v := range keyVals {
+						data[k] = v
+					}
+				}
 				dataSet = append(dataSet, data)
 				activeBlock = nil
 				p.resetBlocks(instructions, nil)
-				nonMatchStart = i + 1
+				nonMatchStart = skipTo + parsed
 				continue
 			}
 			if activeBlock != nil && !blockIsActive(block) {
@@ -116,10 +124,18 @@ func (p *Parser) handleParse(instructions []*Block, markup, fullQuit string, def
 				for k, v := range block.InjectValues {
 					data[k] = v
 				}
+				// 10 3
+				keyVals, parsed := p.ParseMapKeys(markup[min(i+1, len([]rune(markup))-1):])
+				if parsed > 0 {
+					skipTo = i + parsed + 1
+					for k, v := range keyVals {
+						data[k] = v
+					}
+				}
 				dataSet = append(dataSet, data)
 				activeBlock = nil
 				p.resetBlocks(instructions, nil)
-				nonMatchStart = i + 1
+				nonMatchStart = i + 1 + parsed
 			} else if blockIsActive(block) && len([]rune(block.BlockStop)) > block.MatchIndex && []rune(block.BlockStop)[block.MatchIndex] == char {
 				block.MatchIndex++
 			} else if blockIsActive(block) {
@@ -183,23 +199,30 @@ func (p *Parser) resetBlocks(instructions []*Block, exclude *Block) {
 	}
 }
 
-func (p *Parser) parseKeys(text string) map[string]string {
-	resp := map[string]string{}
-	keySlice := strings.Split(text, "<")
-	if len(keySlice) < 2 {
-		return resp
+// ParseMapKeys takes in a string and attempts to parse a key value pair
+// pattern at the beginning. If successful, the number of runes parsed is also
+// returned.
+//
+// expectation is ::[key: val, key2: val2, keyn: valn] ...
+func (p *Parser) ParseMapKeys(text string) (result map[string]string, parsed int) {
+	var matchString string
+	result = map[string]string{}
+	runeSlice := []rune(text)
+	if len(runeSlice) < 7 || string(runeSlice[:3]) != "::[" {
+		return
+	} else if temp := strings.Split(text[3:], "]"); len(temp) < 2 {
+		return
+	} else {
+		matchString = temp[0]
 	}
-	// in case "<" is a char in the actual content
-	keyString := strings.Join(keySlice[1:], "<")
-	if []rune(keyString)[len(text)-1] == '>' {
-		keyPairs := strings.Split(string([]rune(keyString)[:len(keyString)-1]), ",")
-		for _, keyPair := range keyPairs {
-			if keyVal := strings.Split(keyPair, ":"); len(keyVal) == 2 {
-				resp[strings.TrimSpace(keyVal[0])] = strings.TrimSpace(keyVal[1])
-			}
+	keyPairs := strings.Split(string(matchString), ",")
+	for _, keyPair := range keyPairs {
+		if keyVal := strings.Split(keyPair, ":"); len(keyVal) == 2 {
+			result[strings.TrimSpace(keyVal[0])] = strings.TrimSpace(keyVal[1])
 		}
 	}
-	return resp
+	parsed = len([]rune(matchString)) + 4
+	return
 }
 
 var DefaultInstructions []*Block = []*Block{

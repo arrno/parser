@@ -89,6 +89,9 @@ The brown **fox** jumps [[over]] the __lazy__ dog.
 `
 
 parser := NewParser(nestedInstructions, nil)
+data := parser.DoParse(text)
+r, _ := json.MarshalIndent(data, "", "    ")
+fmt.Println(string(r))
 
 // expected:
 // [
@@ -125,6 +128,37 @@ parser := NewParser(nestedInstructions, nil)
 //         ],
 //         "Type": "inlinep"
 //         "Dynamic": "Inject whatever you want!"
+//     }
+// ]
+```
+## Inject dynamic attributes
+Sometimes you need to inject dynamic attributes at the individual tag level like for an `HTML` `href` or `img src`. To do this, immediately preceed a closing tag with `::` followed by the key pairs within brackets and separated by commas as shown below:
+
+```Go
+// assume we have defined a rule such as:
+// {
+// 	BlockStart: "<a>",
+// 	BlockStop:  "</a>",
+// 	SubBlocks:  nil,
+// 	InjectValues: map[string]any{
+// 		"Type": "Link",
+// 	},
+// }
+
+text := `<a>A link with dynamic attributes!</a>::[ href: www.example.com, dynamic: value]`
+
+parser := NewParser(nestedInstructions, nil)
+data := parser.DoParse(text)
+r, _ := json.MarshalIndent(data, "", "    ")
+fmt.Println(string(r))
+
+// expected:
+// [
+//     {
+//         "Content": "A link with dynamic attributes!",
+//         "Type": "Link",
+//         "href": "www.example.com",
+//         "dynamic": "value"
 //     }
 // ]
 ```
