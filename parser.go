@@ -200,15 +200,14 @@ func (p *Parser) resetBlocks(instructions []*Block, exclude *Block) {
 }
 
 type inheritedContent struct {
-	content      []map[string]any
-	openTagStart int
-	closeTagEnd  int
+	content    []map[string]any
+	startStops [][]int
 }
 type stackBlock struct {
 	openTagStart     int
 	closeTagEnd      int
 	matchIndex       int
-	inheritedContent inheritedContent
+	inheritedContent *inheritedContent
 	block            *Block
 }
 
@@ -247,13 +246,39 @@ func (p *Parser) handleParseStack(instructions []*Block, markup string) []map[st
 			if blockIsActive(block) && len([]rune(block.BlockStop)) > block.MatchIndex && []rune(block.BlockStop)[block.MatchIndex] == char {
 				block.MatchIndex++
 				if block.MatchIndex == len([]rune(block.BlockStop)) {
+					stackBlock := activeBlockStack[len(activeBlockStack)-1]
 					// pull text between active block tags
-					// check for inherited content... put matching text between inherited content into defaul tags and merge into inherited content
+					matchText := markup[(stackBlock.openTagStart + len(block.BlockStart)) : i-(len(block.BlockStop)-1)]
+					var data map[string]any
+					if stackBlock.inheritedContent != nil {
+						// check for inherited content... put matching text between inherited content into defaul tags and merge into inherited content
+					} else {
+						data["Content"] = matchText
+					}
+					for k, v := range block.InjectValues {
+						data[k] = v
+					}
 					// parseMapKeys, set skip note closeTagEnd
+					keyVals, parsed := p.ParseMapKeys(markup[min(i+1, len(markup)-1):])
+					if parsed > 0 {
+						skipBy += parsed
+						for k, v := range keyVals {
+							data[k] = v
+						}
+					}
+					stackBlock.closeTagEnd = i + parsed
 					// if this block is at position 1, append merged content into dataSet
-					//     else, inject as inherited content on next block in stack
+					if len(activeBlockStack) == 1 {
+						dataSet = append(dataSet, data)
+					} else {
+						// else, inject as inherited content on next block in stack
+						ic := activeBlockStack[len(activeBlockStack)-2].inheritedContent
+						ic.content = append(ic.content, data)
+						ic.startStops = append(ic.startStops, []int{stackBlock.openTagStart, i})
+					}
 					// pop
 					activeBlockStack = activeBlockStack[:len(activeBlockStack)-1]
+					p.resetBlocks(instructions, nil)
 				}
 			}
 		}
