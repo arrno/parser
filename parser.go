@@ -199,6 +199,81 @@ func (p *Parser) resetBlocks(instructions []*Block, exclude *Block) {
 	}
 }
 
+type inheritedContent struct {
+	content      []map[string]any
+	openTagStart int
+	closeTagEnd  int
+}
+type stackBlock struct {
+	openTagStart     int
+	closeTagEnd      int
+	matchIndex       int
+	inheritedContent inheritedContent
+	block            *Block
+}
+
+// stack method for infinitely deep markup
+func (p *Parser) handleParseStack(instructions []*Block, markup string) []map[string]any {
+
+	dataSet := []map[string]any{}
+
+	activeBlockStack := []*stackBlock{}
+	var candidateBlock *Block = nil
+
+	blockIsActive := func(block *Block) bool {
+		return len(activeBlockStack) > 0 && reflect.DeepEqual(activeBlockStack[len(activeBlockStack)-1].block, block)
+	}
+
+	skipBy := 0
+
+	for i, char := range markup {
+
+		for _, block := range instructions {
+
+			if skipBy > 0 {
+				skipBy--
+				continue
+			}
+
+			// evaluate for pushing onto stack
+			if len([]rune(block.BlockStart)) > block.MatchIndex && []rune(block.BlockStart)[block.MatchIndex] == char {
+				block.MatchIndex++
+				if (block.MatchIndex == len([]rune(block.BlockStart))) && (candidateBlock == nil || block.MatchIndex > candidateBlock.MatchIndex) {
+					candidateBlock = block
+				}
+			}
+
+			// evaluate for popping off of stack
+			if blockIsActive(block) && len([]rune(block.BlockStop)) > block.MatchIndex && []rune(block.BlockStop)[block.MatchIndex] == char {
+				block.MatchIndex++
+				if block.MatchIndex == len([]rune(block.BlockStop)) {
+					// pull text between active block tags
+					// check for inherited content... put matching text between inherited content into defaul tags and merge into inherited content
+					// parseMapKeys, set skip note closeTagEnd
+					// if this block is at position 1, append merged content into dataSet
+					//     else, inject as inherited content on next block in stack
+					// pop
+					activeBlockStack = activeBlockStack[:len(activeBlockStack)-1]
+				}
+			}
+		}
+		// execute push onto stack
+		if candidateBlock != nil {
+			sb := stackBlock{
+				openTagStart: i - len([]rune(candidateBlock.BlockStart)),
+				closeTagEnd:  -1,
+				matchIndex:   0,
+				block:        candidateBlock,
+			}
+			activeBlockStack = append(activeBlockStack, &sb)
+			candidateBlock = nil
+			p.resetBlocks(instructions, nil)
+		}
+	}
+
+	return dataSet
+}
+
 // ParseMapKeys takes in a string and attempts to parse a key value pair
 // pattern at the beginning. If successful, the number of runes parsed is also
 // returned.
