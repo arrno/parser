@@ -205,16 +205,16 @@ type inheritedContent struct {
 }
 type stackBlock struct {
 	openTagStart     int
-	closeTagEnd      int
 	matchIndex       int
 	inheritedContent *inheritedContent
 	block            *Block
 }
 
 // stack method for infinitely deep markup
-func (p *Parser) handleParseStack(instructions []*Block, markup string) []map[string]any {
+func (p *Parser) handleParseStack(instructions []*Block, defaultBlock *Block, markup string) []map[string]any {
 
 	dataSet := []map[string]any{}
+	markupRune := []rune(markup)
 
 	activeBlockStack := []*stackBlock{}
 	var candidateBlock *Block = nil
@@ -234,39 +234,71 @@ func (p *Parser) handleParseStack(instructions []*Block, markup string) []map[st
 				continue
 			}
 
+			blockStopRune := []rune(block.BlockStop)
+			blockStartRune := []rune(block.BlockStart)
+			
 			// evaluate for pushing onto stack
-			if len([]rune(block.BlockStart)) > block.MatchIndex && []rune(block.BlockStart)[block.MatchIndex] == char {
+			if len(blockStartRune) > block.MatchIndex && blockStartRune[block.MatchIndex] == char {
 				block.MatchIndex++
-				if (block.MatchIndex == len([]rune(block.BlockStart))) && (candidateBlock == nil || block.MatchIndex > candidateBlock.MatchIndex) {
+				if (block.MatchIndex == len(blockStartRune)) && (candidateBlock == nil || block.MatchIndex > candidateBlock.MatchIndex) {
 					candidateBlock = block
 				}
 			}
 
 			// evaluate for popping off of stack
-			if blockIsActive(block) && len([]rune(block.BlockStop)) > block.MatchIndex && []rune(block.BlockStop)[block.MatchIndex] == char {
+			if candidateBlock ==  nil && blockIsActive(block) && len(blockStopRune) > block.MatchIndex && blockStopRune[block.MatchIndex] == char {
 				block.MatchIndex++
-				if block.MatchIndex == len([]rune(block.BlockStop)) {
+				if block.MatchIndex == len(blockStopRune) {
 					stackBlock := activeBlockStack[len(activeBlockStack)-1]
 					// pull text between active block tags
-					matchText := markup[(stackBlock.openTagStart + len(block.BlockStart)) : i-(len(block.BlockStop)-1)]
+					matchTextRune := markupRune[(stackBlock.openTagStart + len(blockStartRune)) : i-(len(blockStopRune)-1)]
 					var data map[string]any
 					if stackBlock.inheritedContent != nil {
+						contentSlice := []map[string]any{}
 						// check for inherited content... put matching text between inherited content into defaul tags and merge into inherited content
+						unmatchStart := (stackBlock.openTagStart + len(blockStartRune))
+						db := block.SubDefaultBlock
+						if db == nil {
+							db = defaultBlock
+						}
+						for i, startStop := range stackBlock.inheritedContent.startStops {
+							// if unmatch start is less than startStop[0] -> append unmatchStart:0, append inherited, unmatchStart = startStop[1]
+							if unmatchStart < startStop[0] && db != nil {
+								subData := map[string]any{
+									"Content": string(matchTextRune[unmatchStart:startStop[0]]),
+								}
+								for k, v := range db.InjectValues {
+									subData[k] = v
+								}
+								contentSlice = append(contentSlice, subData)
+								unmatchStart = startStop[1] + 1 
+							}
+							contentSlice = append(contentSlice, stackBlock.inheritedContent.content[i])
+						}
+						if unmatchStart < i - (len(block.BlockStop)-1) && db != nil {
+							subData := map[string]any{
+								"Content": string(matchTextRune[unmatchStart: i - (len(blockStartRune)-1) ]),
+							}
+							for k, v := range db.InjectValues {
+								subData[k] = v
+							}
+							contentSlice = append(contentSlice, subData)
+						}
+						data["Content"] = contentSlice
 					} else {
-						data["Content"] = matchText
+						data["Content"] = string(matchTextRune)
 					}
 					for k, v := range block.InjectValues {
 						data[k] = v
 					}
 					// parseMapKeys, set skip note closeTagEnd
-					keyVals, parsed := p.ParseMapKeys(markup[min(i+1, len(markup)-1):])
+					keyVals, parsed := p.ParseMapKeys(string(markupRune[min(i+1, len(markupRune)-1):]))
 					if parsed > 0 {
 						skipBy += parsed
 						for k, v := range keyVals {
 							data[k] = v
 						}
 					}
-					stackBlock.closeTagEnd = i + parsed
 					// if this block is at position 1, append merged content into dataSet
 					if len(activeBlockStack) == 1 {
 						dataSet = append(dataSet, data)
@@ -274,7 +306,7 @@ func (p *Parser) handleParseStack(instructions []*Block, markup string) []map[st
 						// else, inject as inherited content on next block in stack
 						ic := activeBlockStack[len(activeBlockStack)-2].inheritedContent
 						ic.content = append(ic.content, data)
-						ic.startStops = append(ic.startStops, []int{stackBlock.openTagStart, i})
+						ic.startStops = append(ic.startStops, []int{stackBlock.openTagStart, i + parsed})
 					}
 					// pop
 					activeBlockStack = activeBlockStack[:len(activeBlockStack)-1]
@@ -286,7 +318,6 @@ func (p *Parser) handleParseStack(instructions []*Block, markup string) []map[st
 		if candidateBlock != nil {
 			sb := stackBlock{
 				openTagStart: i - len([]rune(candidateBlock.BlockStart)),
-				closeTagEnd:  -1,
 				matchIndex:   0,
 				block:        candidateBlock,
 			}
