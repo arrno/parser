@@ -17,6 +17,7 @@ type Block struct {
 	BlockStop         string
 	Matching          bool
 	MatchIndex        int
+	MatchStopIndex    int
 	SubBlocks         []*Block
 	SubDefaultBlock   *Block
 	InjectValues      map[string]any
@@ -43,8 +44,7 @@ func NewParser(instructions []*Block, defaultBlock *Block) *Parser {
 
 // DoParse will parse the input markup text into structured data.
 func (p *Parser) DoParse(markup string) []map[string]any {
-	data, _ := p.handleParse(p.instructions, markup, "//!end!//", p.defaultBlock)
-	return data
+	return p.handleParseStack(markup)
 }
 
 // handleParse is a recursive function that executes the parsing argorithm.
@@ -192,6 +192,7 @@ func (p *Parser) handleParse(instructions []*Block, markup, fullQuit string, def
 func (p *Parser) resetBlocks(instructions []*Block, exclude *Block) {
 	for _, block := range instructions {
 		block.MatchIndex = 0
+		block.MatchStopIndex = 0
 		if !reflect.DeepEqual(block, exclude) {
 			block.ContentStartIndex = 0
 			block.Matching = false
@@ -211,7 +212,7 @@ type stackBlock struct {
 }
 
 // stack method for infinitely deep markup
-func (p *Parser) handleParseStack(instructions []*Block, defaultBlock *Block, markup string) []map[string]any {
+func (p *Parser) handleParseStack(markup string) []map[string]any {
 
 	dataSet := []map[string]any{}
 	markupRune := []rune(markup)
@@ -225,9 +226,11 @@ func (p *Parser) handleParseStack(instructions []*Block, defaultBlock *Block, ma
 
 	skipBy := 0
 
-	for i, char := range markup {
+	// for byteIndex, char := range markup {
+	for i := 0; i < len(markupRune); i++ {
 
-		for _, block := range instructions {
+		char := markupRune[i]
+		for _, block := range p.instructions {
 
 			if skipBy > 0 {
 				skipBy--
@@ -236,48 +239,40 @@ func (p *Parser) handleParseStack(instructions []*Block, defaultBlock *Block, ma
 
 			blockStopRune := []rune(block.BlockStop)
 			blockStartRune := []rune(block.BlockStart)
-			
-			// evaluate for pushing onto stack
-			if len(blockStartRune) > block.MatchIndex && blockStartRune[block.MatchIndex] == char {
-				block.MatchIndex++
-				if (block.MatchIndex == len(blockStartRune)) && (candidateBlock == nil || block.MatchIndex > candidateBlock.MatchIndex) {
-					candidateBlock = block
-				}
-			}
 
 			// evaluate for popping off of stack
-			if candidateBlock ==  nil && blockIsActive(block) && len(blockStopRune) > block.MatchIndex && blockStopRune[block.MatchIndex] == char {
-				block.MatchIndex++
-				if block.MatchIndex == len(blockStopRune) {
+			if candidateBlock == nil && blockIsActive(block) && len(blockStopRune) > block.MatchStopIndex && blockStopRune[block.MatchStopIndex] == char {
+				block.MatchStopIndex++
+				if block.MatchStopIndex == len(blockStopRune) {
 					stackBlock := activeBlockStack[len(activeBlockStack)-1]
 					// pull text between active block tags
 					matchTextRune := markupRune[(stackBlock.openTagStart + len(blockStartRune)) : i-(len(blockStopRune)-1)]
-					var data map[string]any
+					data := map[string]any{}
 					if stackBlock.inheritedContent != nil {
 						contentSlice := []map[string]any{}
 						// check for inherited content... put matching text between inherited content into defaul tags and merge into inherited content
 						unmatchStart := (stackBlock.openTagStart + len(blockStartRune))
 						db := block.SubDefaultBlock
 						if db == nil {
-							db = defaultBlock
+							db = p.defaultBlock
 						}
 						for i, startStop := range stackBlock.inheritedContent.startStops {
 							// if unmatch start is less than startStop[0] -> append unmatchStart:0, append inherited, unmatchStart = startStop[1]
 							if unmatchStart < startStop[0] && db != nil {
 								subData := map[string]any{
-									"Content": string(matchTextRune[unmatchStart:startStop[0]]),
+									"Content": string(markupRune[unmatchStart:startStop[0]]),
 								}
 								for k, v := range db.InjectValues {
 									subData[k] = v
 								}
 								contentSlice = append(contentSlice, subData)
-								unmatchStart = startStop[1] + 1 
+								unmatchStart = startStop[1] + 1
 							}
 							contentSlice = append(contentSlice, stackBlock.inheritedContent.content[i])
 						}
-						if unmatchStart < i - (len(block.BlockStop)-1) && db != nil {
+						if unmatchStart < i-(len(block.BlockStop)-1) && db != nil {
 							subData := map[string]any{
-								"Content": string(matchTextRune[unmatchStart: i - (len(blockStartRune)-1) ]),
+								"Content": string(markupRune[unmatchStart : i-(len(blockStartRune)-1)]),
 							}
 							for k, v := range db.InjectValues {
 								subData[k] = v
@@ -305,25 +300,40 @@ func (p *Parser) handleParseStack(instructions []*Block, defaultBlock *Block, ma
 					} else {
 						// else, inject as inherited content on next block in stack
 						ic := activeBlockStack[len(activeBlockStack)-2].inheritedContent
+						if ic == nil {
+							ic = &inheritedContent{
+								content:    []map[string]any{},
+								startStops: [][]int{},
+							}
+						}
 						ic.content = append(ic.content, data)
 						ic.startStops = append(ic.startStops, []int{stackBlock.openTagStart, i + parsed})
+						activeBlockStack[len(activeBlockStack)-2].inheritedContent = ic
 					}
 					// pop
 					activeBlockStack = activeBlockStack[:len(activeBlockStack)-1]
-					p.resetBlocks(instructions, nil)
+					p.resetBlocks(p.instructions, nil)
+				}
+			}
+
+			// evaluate for pushing onto stack
+			if len(blockStartRune) > block.MatchIndex && blockStartRune[block.MatchIndex] == char {
+				block.MatchIndex++
+				if (block.MatchIndex == len(blockStartRune)) && (candidateBlock == nil || block.MatchIndex > candidateBlock.MatchIndex) {
+					candidateBlock = block
 				}
 			}
 		}
 		// execute push onto stack
 		if candidateBlock != nil {
 			sb := stackBlock{
-				openTagStart: i - len([]rune(candidateBlock.BlockStart)),
+				openTagStart: i - len([]rune(candidateBlock.BlockStart)) + 1,
 				matchIndex:   0,
 				block:        candidateBlock,
 			}
 			activeBlockStack = append(activeBlockStack, &sb)
 			candidateBlock = nil
-			p.resetBlocks(instructions, nil)
+			p.resetBlocks(p.instructions, nil)
 		}
 	}
 
