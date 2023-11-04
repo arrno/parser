@@ -333,6 +333,7 @@ var DefaultInstructions ParseInstructions = ParseInstructions{
 		Attributes: map[string]any{
 			"Type": "ol",
 		},
+		Trim: true,
 	},
 	{
 		OpenTag:  "<li>",
@@ -340,5 +341,6 @@ var DefaultInstructions ParseInstructions = ParseInstructions{
 		Attributes: map[string]any{
 			"Type": "li",
 		},
+		Trim: true,
 	},
 }

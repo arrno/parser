@@ -1,25 +1,25 @@
 # Markup parser for GO!
 This markup parser makes it easy to quickly define your own markup rules so you can write effortlessly and convert your content into hierarchical structured data.
 ## Define a set of parser rule blocks
-Define a set of custom rules then use it to instantiate a parser. This example shows a set of instructions with one rule but you can add as many rule blocks as you like.
+Define a set of custom rules then use it to instantiate a parser. This example shows a set with only one instruction but you can add as many instructions as you like. If instructions is `nil`, a default subset of HTML rules are used.
 ```Go
-var instructions []*Block = []*Block{
+instructions := ParseInstructions{
 	{
-		BlockStart: "//p\n",
-		BlockStop:  "\n//p",
-		SubBlocks:  nil,
-		InjectValues: map[string]any{
+		OpenTag:  "<p>",
+		CloseTag: "</p>",
+		Attributes: map[string]any{
 			"Type": "p",
 		},
+		Trim: true,
 	},
 }
 
-parser := NewParser(instructions, nil)
+parser := NewParser(instructions)
 ```
 ## Parse your own markup language
 Use your custom rules to parse text into structured data.
 ```Go
-data := parser.DoParse("//p\nHello, World!\n//p")
+data := parser.DoParse("<p> Hello, World! </p>")
 r, _ := json.MarshalIndent(data, "", "    ")
 fmt.Println(string(r))
 
@@ -32,64 +32,51 @@ fmt.Println(string(r))
 // ]
 ```
 
-## Parse nested markup language and inject custom attributes
-Check out this more verbose example of a rule block with nested blocks. We can also use a default instruction block at any level for text not captured by tags defined in rule blocks.
+## Parse nested markup language with more tag attributes
 ```Go
-var nestedInstructions []*Block = []*Block{
+instructions := ParseInstructions{
 	{
-		BlockStart: "//inlinep\n",
-		BlockStop:  "\n//inlinep",
-		SubBlocks: []*Block{
-			{
-				BlockStart: "[[",
-				BlockStop:  "]]",
-				SubBlocks:  nil,
-				InjectValues: map[string]any{
-					"Type": "code",
-				},
-			},
-			{
-				BlockStart: "**",
-				BlockStop:  "**",
-				SubBlocks:  nil,
-				InjectValues: map[string]any{
-					"Type": "b",
-				},
-			},
-			{
-				BlockStart: "__",
-				BlockStop:  "__",
-				SubBlocks:  nil,
-				InjectValues: map[string]any{
-					"Type": "i",
-				},
-			},
+		OpenTag:  "<p>",
+		CloseTag: "</p>",
+		Attributes: map[string]any{
+			"Type": "p",
+			"Name": "Paragraph",
 		},
-		SubDefaultBlock: &Block{
-			BlockStart: "<span>",
-			BlockStop:  "</span>",
-			SubBlocks:  nil,
-			InjectValues: map[string]any{
-				"Type": "span",
-			},
+		Trim: true,
+	},
+	{
+		OpenTag:  "<strong>",
+		CloseTag: "</strong>",
+		Attributes: map[string]any{
+			"Type": "b",
+			"Name": "Bold",
 		},
-		InjectValues: map[string]any{
-			"Type": "inlinep",
-			"Dynamic": "Inject whatever you want!"
+	},
+	{
+		OpenTag:  "<em>",
+		CloseTag: "</em>",
+		Attributes: map[string]any{
+			"Type": "i",
+			"Name": "Italic",
+		},
+	},
+	{
+		OpenTag:  "<code>",
+		CloseTag: "</code>",
+		Attributes: map[string]any{
+			"Type": "c",
+			"Name": "Code",
 		},
 	},
 }
-```
 
-Here is an example of nested markup. We want everything inside the `inlinep` tags to be considered a paragraph. Within that paragraph, we have markup for `bold`, `italic`, and `code` text. We also want anything within the paragraph that is not contained in an explicit markup tag to be marked as a `span`. We use the rule set described above to instantiate a new parser and produce the desired structured output.
-```Go
 text := `
-//inlinep
-The brown **fox** jumps [[over]] the __lazy__ dog.
-//inlinep
+<p>
+	The brown <strong>fox</strong> jumps <code>over</code> the <em>lazy</em> dog.
+</p>
 `
 
-parser := NewParser(nestedInstructions, nil)
+parser := NewParser(instructions)
 data := parser.DoParse(text)
 r, _ := json.MarshalIndent(data, "", "    ")
 fmt.Println(string(r))
@@ -99,36 +86,35 @@ fmt.Println(string(r))
 //     {
 //         "Content": [
 //             {
-//                 "Content": "The brown ",
-//                 "Type": "span"
+//                 "Content": "The brown "
 //             },
 //             {
 //                 "Content": "fox",
-//                 "Type": "b"
+//                 "Type": "b",
+// 				   "Name": "Bold"
 //             },
 //             {
-//                 "Content": " jumps ",
-//                 "Type": "span"
+//                 "Content": " jumps "
 //             },
 //             {
 //                 "Content": "over",
-//                 "Type": "code"
+//                 "Type": "c",
+// 				   "Name": "Code"
 //             },
 //             {
-//                 "Content": " the ",
-//                 "Type": "span"
+//                 "Content": " the "
 //             },
 //             {
 //                 "Content": "lazy",
-//                 "Type": "i"
+//                 "Type": "i",
+// 				   "Name": "Italic"
 //             },
 //             {
-//                 "Content": " dog.",
-//                 "Type": "span"
+//                 "Content": " dog."
 //             }
 //         ],
-//         "Type": "inlinep"
-//         "Dynamic": "Inject whatever you want!"
+//         "Type": "p",
+// 		   "Name": "Paragraph"
 //     }
 // ]
 ```
@@ -136,19 +122,19 @@ fmt.Println(string(r))
 Sometimes you need to inject dynamic attributes at the individual tag level like for an `HTML` `href` or `img src`. To do this, immediately precede a closing tag with `::` followed by the key pairs within brackets and separated by commas as shown below:
 
 ```Go
-// assume we have defined a rule such as:
-// {
-// 	BlockStart: "<a>",
-// 	BlockStop:  "</a>",
-// 	SubBlocks:  nil,
-// 	InjectValues: map[string]any{
-// 		"Type": "Link",
-// 	},
-// }
-
+instructions := ParseInstructions{
+	{
+		OpenTag:  "<a>",
+		CloseTag: "</a>",
+		Attributes: map[string]any{
+			"Type": "a",
+		},
+		Trim: true,
+	},
+}
 text := `<a>A link with dynamic attributes!</a>::[ href: www.example.com, dynamic: value ]`
 
-parser := NewParser(linkInstructions, nil)
+parser := NewParser(instructions)
 data := parser.DoParse(text)
 r, _ := json.MarshalIndent(data, "", "    ")
 fmt.Println(string(r))
@@ -157,7 +143,7 @@ fmt.Println(string(r))
 // [
 //     {
 //         "Content": "A link with dynamic attributes!",
-//         "Type": "Link",
+//         "Type": "s",
 //         "href": "www.example.com",
 //         "dynamic": "value"
 //     }

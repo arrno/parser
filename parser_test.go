@@ -1,302 +1,184 @@
 package parser
 
 import (
+	"encoding/json"
+	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
-func TestTemp(t *testing.T) {
-	assert.Equal(t, 1, 1)
+func TestParse(t *testing.T) {
+	parser := NewParser(nil)
+	d := parser.DoParse(markup)
+	r, err := json.MarshalIndent(d, "", "    ")
+	assert.Nil(t, err)
+	assert.Equal(t, expected, string(r))
 }
 
-// func TestParse(t *testing.T) {
-// 	parser := NewParser(nil, nil)
-// 	DataSet := parser.DoParse(md)
-// 	r, _ := json.MarshalIndent(DataSet, "", "    ")
-// 	assert.Equal(t, mdExpected, string(r))
-// 	DataSet = parser.DoParse(quitTagSeparated)
-// 	r, _ = json.MarshalIndent(DataSet, "", "    ")
-// 	assert.Equal(t, quitTagSeparatedExpected, string(r))
-// 	DataSet = parser.DoParse(withEmoji)
-// 	r, _ = json.MarshalIndent(DataSet, "", "    ")
-// 	assert.Equal(t, withEmojiExpected, string(r))
-// }
+func TestMapKeys(t *testing.T) {
+	parser := NewParser(nil)
+	result, parsed := parser.ParseMapKeys("::[ one: a, two: ✨blue, three: FuNtImE! ] nothing else matters!")
+	expected := map[string]string{"one": "a", "two": "✨blue", "three": "FuNtImE!"}
+	assert.Equal(t, parsed, 41)
+	assert.True(t, reflect.DeepEqual(result, expected))
+	result, parsed = parser.ParseMapKeys("hello!")
+	assert.Equal(t, parsed, 0)
+}
 
-// func TestMapKeys(t *testing.T) {
-// 	parser := NewParser(nil, nil)
-// 	result, parsed := parser.ParseMapKeys("::[ one: a, two: ✨blue, three: FuNtImE! ] nothing else matters!")
-// 	expected := map[string]string{"one": "a", "two": "✨blue", "three": "FuNtImE!"}
-// 	assert.Equal(t, parsed, 41)
-// 	assert.True(t, reflect.DeepEqual(result, expected))
-// 	result, parsed = parser.ParseMapKeys("hello!")
-// 	assert.Equal(t, parsed, 0)
-// }
+var markup string = `
+<p>
+Hello, ✨ world!
+</p>::[injected: content, more: values]
 
-// func TestParseMapKeys(t *testing.T) {
-// 	parser := NewParser(nil, nil)
-// 	DataSet := parser.DoParse(withMapKeys)
-// 	r, _ := json.MarshalIndent(DataSet, "", "    ")
-// 	assert.Equal(t, withMapKeysExpected, string(r))
-// }
+<h1> one </h1>
+<h2> two </h2>
+<h3> three </h3>
+<h2> two </h2>
+<h1> one </h1>
 
-// var withMapKeys string = `
-// //p
-// one paragraph
-// //p::[special:value, injected: true]
-// //p
-// a second paragraph
-// //p::[one: blue]
+<p> 
+The brown <strong>fox</strong> jumps <code>over</code> the <em>lazy</em> dog. <strong>this is <code>very <em>nested</em></code>::[injected: content, more: values!!!] rem<ap>ip<n //>der </strong> 
+</p>
 
-// //inlinep
-// Once I was **cool**::[inject: me] I was so [[cool]] that I was a __cool cat!__::[inject: end]
-// //inlinep::[nested: inject]
+<p>
+<p> <p><p>			<p>woop</p></p></p>
+</p>
+</p>
 
-// //inlinep
-// hello, **world**::[ inject: me ] !!!
-// //inlinep
-// `
-// var withMapKeysExpected string = `[
-//     {
-//         "Content": "one paragraph",
-//         "Type": "p",
-//         "injected": "true",
-//         "special": "value"
-//     },
-//     {
-//         "Content": "a second paragraph",
-//         "Type": "p",
-//         "one": "blue"
-//     },
-//     {
-//         "Content": [
-//             {
-//                 "Content": "Once I was ",
-//                 "Type": "span"
-//             },
-//             {
-//                 "Content": "cool",
-//                 "Type": "b",
-//                 "inject": "me"
-//             },
-//             {
-//                 "Content": " I was so ",
-//                 "Type": "span"
-//             },
-//             {
-//                 "Content": "cool",
-//                 "Type": "code"
-//             },
-//             {
-//                 "Content": " that I was a ",
-//                 "Type": "span"
-//             },
-//             {
-//                 "Content": "cool cat!",
-//                 "Type": "i",
-//                 "inject": "end"
-//             }
-//         ],
-//         "Type": "inlinep",
-//         "nested": "inject"
-//     },
-//     {
-//         "Content": [
-//             {
-//                 "Content": "hello, ",
-//                 "Type": "span"
-//             },
-//             {
-//                 "Content": "world",
-//                 "Type": "b",
-//                 "inject": "me"
-//             },
-//             {
-//                 "Content": " !!!",
-//                 "Type": "span"
-//             }
-//         ],
-//         "Type": "inlinep"
-//     }
-// ]`
+<p>
 
-// var withEmoji string = `
-// ## Overview
-// # ✨ Hello and welcome!
-// `
-// var withEmojiExpected string = `[
-//     {
-//         "Content": "Overview",
-//         "Type": "h2"
-//     },
-//     {
-//         "Content": "✨ Hello and welcome!",
-//         "Type": "h1"
-//     }
-// ]`
+   trim me
 
-// var md string = `
-// ### H
-// # H
-// ## H
-// ### H
-// ## H
-// # H
-// ## H
-// ## H
+</p>
 
-// //p
-// one I was a cool
-// cat who was a cool cat
-// cool
-// //p
+<p>
+<span>
 
-// //inlinep
-// Once I was **cool** I was so [[cool]] that I was a __cool__ cat!
-// //inlinep
+   don't trim me
 
-// //code-Go
-// fmt.Println("Hello")
-// //code
+</span>::[]
+</p>::[injected: content]
+cut out
+`
 
-// //ul
-// - one
-// - two
-// - three
-// //ul
-
-// //ol
-// - one
-// - two
-// - three
-// //ol
-
-// //!end!//
-// ## I will be cut out
-// `
-
-// var mdExpected string = `[
-//     {
-//         "Content": "H",
-//         "Type": "h3"
-//     },
-//     {
-//         "Content": "H",
-//         "Type": "h1"
-//     },
-//     {
-//         "Content": "H",
-//         "Type": "h2"
-//     },
-//     {
-//         "Content": "H",
-//         "Type": "h3"
-//     },
-//     {
-//         "Content": "H",
-//         "Type": "h2"
-//     },
-//     {
-//         "Content": "H",
-//         "Type": "h1"
-//     },
-//     {
-//         "Content": "H",
-//         "Type": "h2"
-//     },
-//     {
-//         "Content": "H",
-//         "Type": "h2"
-//     },
-//     {
-//         "Content": "one I was a cool\ncat who was a cool cat\ncool",
-//         "Type": "p"
-//     },
-//     {
-//         "Content": [
-//             {
-//                 "Content": "Once I was ",
-//                 "Type": "span"
-//             },
-//             {
-//                 "Content": "cool",
-//                 "Type": "b"
-//             },
-//             {
-//                 "Content": " I was so ",
-//                 "Type": "span"
-//             },
-//             {
-//                 "Content": "cool",
-//                 "Type": "code"
-//             },
-//             {
-//                 "Content": " that I was a ",
-//                 "Type": "span"
-//             },
-//             {
-//                 "Content": "cool",
-//                 "Type": "i"
-//             },
-//             {
-//                 "Content": " cat!",
-//                 "Type": "span"
-//             }
-//         ],
-//         "Type": "inlinep"
-//     },
-//     {
-//         "Content": "fmt.Println(\"Hello\")",
-//         "Language": "Go",
-//         "Type": "code"
-//     },
-//     {
-//         "Content": [
-//             {
-//                 "Content": "one",
-//                 "Type": "li"
-//             },
-//             {
-//                 "Content": "two",
-//                 "Type": "li"
-//             },
-//             {
-//                 "Content": "three",
-//                 "Type": "li"
-//             }
-//         ],
-//         "Type": "ul"
-//     },
-//     {
-//         "Content": [
-//             {
-//                 "Content": "one",
-//                 "Type": "li"
-//             },
-//             {
-//                 "Content": "two",
-//                 "Type": "li"
-//             },
-//             {
-//                 "Content": "three",
-//                 "Type": "li"
-//             }
-//         ],
-//         "Type": "ol"
-//     }
-// ]`
-
-// var quitTagSeparated string = `
-// //code-Go
-// <p>
-//     The brown <b>fox</b> jumps <code>over</code> the <em>lazy</em> dog.
-// </p>
-// //code
-// `
-// var quitTagSeparatedExpected string = `[
-//     {
-//         "Content": "\u003cp\u003e\n    The brown \u003cb\u003efox\u003c/b\u003e jumps \u003ccode\u003eover\u003c/code\u003e the \u003cem\u003elazy\u003c/em\u003e dog.\n\u003c/p\u003e",
-//         "Language": "Go",
-//         "Type": "code"
-//     }
-// ]`
+var expected string = `[
+    {
+        "Content": "Hello, ✨ world!",
+        "Type": "p",
+        "injected": "content",
+        "more": "values"
+    },
+    {
+        "Content": "one",
+        "Type": "h1"
+    },
+    {
+        "Content": "two",
+        "Type": "h2"
+    },
+    {
+        "Content": "three",
+        "Type": "h3"
+    },
+    {
+        "Content": "two",
+        "Type": "h2"
+    },
+    {
+        "Content": "one",
+        "Type": "h1"
+    },
+    {
+        "Content": [
+            {
+                "Content": "The brown "
+            },
+            {
+                "Content": "fox",
+                "Type": "b"
+            },
+            {
+                "Content": " jumps "
+            },
+            {
+                "Content": "over",
+                "Type": "c"
+            },
+            {
+                "Content": " the "
+            },
+            {
+                "Content": "lazy",
+                "Type": "i"
+            },
+            {
+                "Content": " dog. "
+            },
+            {
+                "Content": [
+                    {
+                        "Content": "this is "
+                    },
+                    {
+                        "Content": [
+                            {
+                                "Content": "very "
+                            },
+                            {
+                                "Content": "nested",
+                                "Type": "i"
+                            }
+                        ],
+                        "Type": "c",
+                        "injected": "content",
+                        "more": "values!!!"
+                    },
+                    {
+                        "Content": " rem\u003cap\u003eip\u003cn //\u003eder "
+                    }
+                ],
+                "Type": "b"
+            }
+        ],
+        "Type": "p"
+    },
+    {
+        "Content": [
+            {
+                "Content": [
+                    {
+                        "Content": [
+                            {
+                                "Content": [
+                                    {
+                                        "Content": "woop",
+                                        "Type": "p"
+                                    }
+                                ],
+                                "Type": "p"
+                            }
+                        ],
+                        "Type": "p"
+                    }
+                ],
+                "Type": "p"
+            }
+        ],
+        "Type": "p"
+    },
+    {
+        "Content": "trim me",
+        "Type": "p"
+    },
+    {
+        "Content": [
+            {
+                "Content": "\n\n   don't trim me\n\n",
+                "Type": "s"
+            }
+        ],
+        "Type": "p",
+        "injected": "content"
+    }
+]`
