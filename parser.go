@@ -5,6 +5,10 @@ import (
 	"strings"
 )
 
+const (
+	trimChars string = " \n	"
+)
+
 // MarkupParser is something that is able to parse markup text into structured data.
 type MarkupParser interface {
 	DoParse(markup string) []map[string]any
@@ -18,6 +22,7 @@ type Block struct {
 	MatchIndex     int
 	MatchStopIndex int
 	InjectValues   map[string]any
+	Trim           bool
 }
 
 // Parser implements MarkupParser interface
@@ -38,6 +43,7 @@ func NewParser(instructions ParseInstructions) *Parser {
 			MatchIndex:     0,
 			MatchStopIndex: 0,
 			InjectValues:   instruction.Attributes,
+			Trim:           instruction.Trim,
 		}
 	}
 	p := Parser{
@@ -62,6 +68,7 @@ type Instruction struct {
 	OpenTag    string
 	CloseTag   string
 	Attributes map[string]any
+	Trim       bool
 }
 
 type ParseInstructions []Instruction
@@ -117,26 +124,44 @@ func (p *Parser) handleParseStack(markup string) []map[string]any {
 						contentSlice := []map[string]any{}
 						// check for inherited content... put matching text between inherited content into defaul tags and merge into inherited content
 						unmatchStart := (stackBlock.openTagStart + len(blockStartRune))
-						for i, startStop := range stackBlock.inheritedContent.startStops {
+						for idx, startStop := range stackBlock.inheritedContent.startStops {
 							// if unmatch start is less than startStop[0] -> append unmatchStart:0, append inherited, unmatchStart = startStop[1]
+							text := string(markupRune[unmatchStart:startStop[0]])
 							if unmatchStart < startStop[0] {
-								subData := map[string]any{
-									"Content": string(markupRune[unmatchStart:startStop[0]]),
+								if block.Trim && idx == 0 {
+									text = strings.TrimLeft(text, trimChars)
 								}
-								contentSlice = append(contentSlice, subData)
+								subData := map[string]any{
+									"Content": text,
+								}
+								if len(text) > 0 {
+									contentSlice = append(contentSlice, subData)
+								}
 							}
 							unmatchStart = startStop[1] + 1
-							contentSlice = append(contentSlice, stackBlock.inheritedContent.content[i])
+							contentSlice = append(contentSlice, stackBlock.inheritedContent.content[idx])
 						}
-						if unmatchStart < i-(len(block.BlockStop)-1) {
-							subData := map[string]any{
-								"Content": string(markupRune[unmatchStart : i-(len(blockStartRune)-1)]),
+						// 10
+						if unmatchStart < i-(len(block.BlockStop)) {
+							text := string(markupRune[unmatchStart : i-(len(blockStartRune))])
+							var subData map[string]any
+							if block.Trim {
+								text = strings.TrimRight(text, trimChars)
 							}
-							contentSlice = append(contentSlice, subData)
+							subData = map[string]any{
+								"Content": text,
+							}
+							if len(text) > 0 {
+								contentSlice = append(contentSlice, subData)
+							}
 						}
 						data["Content"] = contentSlice
 					} else {
-						data["Content"] = string(matchTextRune)
+						text := string(matchTextRune)
+						if block.Trim {
+							text = strings.Trim(text, trimChars)
+						}
+						data["Content"] = text
 					}
 					for k, v := range block.InjectValues {
 						data[k] = v
@@ -169,6 +194,8 @@ func (p *Parser) handleParseStack(markup string) []map[string]any {
 					activeBlockStack = activeBlockStack[:len(activeBlockStack)-1]
 					p.resetBlocks()
 				}
+			} else if blockIsActive(block) {
+				block.MatchStopIndex = 0
 			}
 
 			// evaluate for pushing onto stack
@@ -177,6 +204,8 @@ func (p *Parser) handleParseStack(markup string) []map[string]any {
 				if (block.MatchIndex == len(blockStartRune)) && (candidateBlock == nil || block.MatchIndex > candidateBlock.MatchIndex) {
 					candidateBlock = block
 				}
+			} else {
+				block.MatchIndex = 0
 			}
 		}
 		// execute push onto stack
@@ -228,6 +257,7 @@ var DefaultInstructions ParseInstructions = ParseInstructions{
 		Attributes: map[string]any{
 			"Type": "p",
 		},
+		Trim: true,
 	},
 	{
 		OpenTag:  "<strong>",
@@ -256,6 +286,7 @@ var DefaultInstructions ParseInstructions = ParseInstructions{
 		Attributes: map[string]any{
 			"Type": "a",
 		},
+		Trim: true,
 	},
 	{
 		OpenTag:  "<h1>",
@@ -263,6 +294,7 @@ var DefaultInstructions ParseInstructions = ParseInstructions{
 		Attributes: map[string]any{
 			"Type": "h1",
 		},
+		Trim: true,
 	},
 	{
 		OpenTag:  "<h2>",
@@ -270,6 +302,7 @@ var DefaultInstructions ParseInstructions = ParseInstructions{
 		Attributes: map[string]any{
 			"Type": "h2",
 		},
+		Trim: true,
 	},
 	{
 		OpenTag:  "<h3>",
@@ -277,6 +310,7 @@ var DefaultInstructions ParseInstructions = ParseInstructions{
 		Attributes: map[string]any{
 			"Type": "h3",
 		},
+		Trim: true,
 	},
 	{
 		OpenTag:  "<div>",
@@ -284,6 +318,7 @@ var DefaultInstructions ParseInstructions = ParseInstructions{
 		Attributes: map[string]any{
 			"Type": "d",
 		},
+		Trim: true,
 	},
 	{
 		OpenTag:  "<span>",

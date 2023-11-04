@@ -7,8 +7,9 @@ import (
 )
 
 func TestTemp(t *testing.T) {
-    assert.Equal(t, 1, 1)
+	assert.Equal(t, 1, 1)
 }
+
 // func TestParse(t *testing.T) {
 // 	parser := NewParser(nil, nil)
 // 	DataSet := parser.DoParse(md)
