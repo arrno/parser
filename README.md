@@ -91,7 +91,7 @@ fmt.Println(string(r))
 //             {
 //                 "Content": "fox",
 //                 "Type": "b",
-// 				   "Name": "Bold"
+//                 "Name": "Bold"
 //             },
 //             {
 //                 "Content": " jumps "
@@ -99,7 +99,7 @@ fmt.Println(string(r))
 //             {
 //                 "Content": "over",
 //                 "Type": "c",
-// 				   "Name": "Code"
+//                 "Name": "Code"
 //             },
 //             {
 //                 "Content": " the "
@@ -107,14 +107,14 @@ fmt.Println(string(r))
 //             {
 //                 "Content": "lazy",
 //                 "Type": "i",
-// 				   "Name": "Italic"
+//                 "Name": "Italic"
 //             },
 //             {
 //                 "Content": " dog."
 //             }
 //         ],
 //         "Type": "p",
-// 		   "Name": "Paragraph"
+//         "Name": "Paragraph"
 //     }
 // ]
 ```
