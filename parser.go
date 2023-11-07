@@ -16,8 +16,33 @@ type MarkupParser interface {
 	SetTrimChars(text string)
 }
 
-// Block is a single markup parsing instruction. A block can have nested sub blocks.
-type Block struct {
+// Instructions are meant to be written by the user.
+type Instruction struct {
+	OpenTag    string
+	CloseTag   string
+	Attributes map[string]any
+	Trim       bool
+}
+
+// ParseInstructions are a set of Instructions used to instantiate a parser.
+type ParseInstructions []Instruction
+
+// inheritedContent is for block level tracking of what sub text has already been parsed.
+type inheritedContent struct {
+	content    []map[string]any
+	startStops [][]int
+}
+
+// stackBlock is what is pushed/popped from the stack.
+type stackBlock struct {
+	openTagStart     int
+	matchIndex       int
+	inheritedContent *inheritedContent
+	block            *block
+}
+
+// block is a single markup parsing instruction. A block can have nested sub blocks.
+type block struct {
 	BlockStart     string
 	BlockStop      string
 	MatchIndex     int
@@ -28,7 +53,7 @@ type Block struct {
 
 // Parser implements MarkupParser interface
 type Parser struct {
-	instructions []*Block
+	instructions []*block
 	trimChars    string
 }
 
@@ -37,9 +62,9 @@ func NewParser(instructions ParseInstructions) *Parser {
 	if instructions == nil {
 		instructions = DefaultInstructions
 	}
-	blocks := make([]*Block, len(instructions))
+	blocks := make([]*block, len(instructions))
 	for i, instruction := range instructions {
-		blocks[i] = &Block{
+		blocks[i] = &block{
 			BlockStart:     instruction.OpenTag,
 			BlockStop:      instruction.CloseTag,
 			MatchIndex:     0,
@@ -67,25 +92,6 @@ func (p *Parser) resetBlocks() {
 	}
 }
 
-type Instruction struct {
-	OpenTag    string
-	CloseTag   string
-	Attributes map[string]any
-	Trim       bool
-}
-
-type ParseInstructions []Instruction
-type inheritedContent struct {
-	content    []map[string]any
-	startStops [][]int
-}
-type stackBlock struct {
-	openTagStart     int
-	matchIndex       int
-	inheritedContent *inheritedContent
-	block            *Block
-}
-
 // stack method for infinitely deep markup
 func (p *Parser) handleParseStack(markup string) []map[string]any {
 
@@ -93,9 +99,9 @@ func (p *Parser) handleParseStack(markup string) []map[string]any {
 	markupRune := []rune(markup)
 
 	activeBlockStack := []*stackBlock{}
-	var candidateBlock *Block = nil
+	var candidateBlock *block = nil
 
-	blockIsActive := func(block *Block) bool {
+	blockIsActive := func(block *block) bool {
 		return len(activeBlockStack) > 0 && reflect.DeepEqual(activeBlockStack[len(activeBlockStack)-1].block, block)
 	}
 
@@ -258,97 +264,3 @@ func (p *Parser) SetTrimChars(text string) {
 	p.trimChars = text
 }
 
-var DefaultInstructions ParseInstructions = ParseInstructions{
-	{
-		OpenTag:  "<p>",
-		CloseTag: "</p>",
-		Attributes: map[string]any{
-			"Type": "p",
-		},
-		Trim: true,
-	},
-	{
-		OpenTag:  "<strong>",
-		CloseTag: "</strong>",
-		Attributes: map[string]any{
-			"Type": "b",
-		},
-	},
-	{
-		OpenTag:  "<em>",
-		CloseTag: "</em>",
-		Attributes: map[string]any{
-			"Type": "i",
-		},
-	},
-	{
-		OpenTag:  "<code>",
-		CloseTag: "</code>",
-		Attributes: map[string]any{
-			"Type": "c",
-		},
-	},
-	{
-		OpenTag:  "<a>",
-		CloseTag: "</a>",
-		Attributes: map[string]any{
-			"Type": "a",
-		},
-		Trim: true,
-	},
-	{
-		OpenTag:  "<h1>",
-		CloseTag: "</h1>",
-		Attributes: map[string]any{
-			"Type": "h1",
-		},
-		Trim: true,
-	},
-	{
-		OpenTag:  "<h2>",
-		CloseTag: "</h2>",
-		Attributes: map[string]any{
-			"Type": "h2",
-		},
-		Trim: true,
-	},
-	{
-		OpenTag:  "<h3>",
-		CloseTag: "</h3>",
-		Attributes: map[string]any{
-			"Type": "h3",
-		},
-		Trim: true,
-	},
-	{
-		OpenTag:  "<div>",
-		CloseTag: "</div>",
-		Attributes: map[string]any{
-			"Type": "d",
-		},
-		Trim: true,
-	},
-	{
-		OpenTag:  "<span>",
-		CloseTag: "</span>",
-		Attributes: map[string]any{
-			"Type": "s",
-		},
-	},
-	{
-		OpenTag:  "<ol>",
-		CloseTag: "</ol>",
-		Attributes: map[string]any{
-			"Type": "ol",
-		},
-		Trim: true,
-	},
-	{
-		OpenTag:  "<li>",
-		CloseTag: "</li>",
-		Attributes: map[string]any{
-			"Type": "li",
-		},
-		Trim: true,
-	},
-}
