@@ -6,13 +6,14 @@ import (
 )
 
 const (
-	trimChars string = " \n	"
+	defaultTrimChars string = " \n	"
 )
 
 // MarkupParser is something that is able to parse markup text into structured data.
 type MarkupParser interface {
 	DoParse(markup string) []map[string]any
 	ParseMapKeys(text string) (result map[string]string, parsed int)
+	SetTrimChars(text string)
 }
 
 // Block is a single markup parsing instruction. A block can have nested sub blocks.
@@ -28,6 +29,7 @@ type Block struct {
 // Parser implements MarkupParser interface
 type Parser struct {
 	instructions []*Block
+	trimChars string
 }
 
 // NewParser creates a new Parser and returns a pointer to it.
@@ -48,6 +50,7 @@ func NewParser(instructions ParseInstructions) *Parser {
 	}
 	p := Parser{
 		instructions: blocks,
+		trimChars: defaultTrimChars,
 	}
 	return &p
 }
@@ -129,7 +132,7 @@ func (p *Parser) handleParseStack(markup string) []map[string]any {
 							text := string(markupRune[unmatchStart:startStop[0]])
 							if unmatchStart < startStop[0] {
 								if block.Trim && idx == 0 {
-									text = strings.TrimLeft(text, trimChars)
+									text = strings.TrimLeft(text, p.trimChars)
 								}
 								subData := map[string]any{
 									"Content": text,
@@ -146,7 +149,7 @@ func (p *Parser) handleParseStack(markup string) []map[string]any {
 							text := string(markupRune[unmatchStart : i-(len(blockStartRune))])
 							var subData map[string]any
 							if block.Trim {
-								text = strings.TrimRight(text, trimChars)
+								text = strings.TrimRight(text, p.trimChars)
 							}
 							subData = map[string]any{
 								"Content": text,
@@ -159,7 +162,7 @@ func (p *Parser) handleParseStack(markup string) []map[string]any {
 					} else {
 						text := string(matchTextRune)
 						if block.Trim {
-							text = strings.Trim(text, trimChars)
+							text = strings.Trim(text, p.trimChars)
 						}
 						data["Content"] = text
 					}
@@ -248,6 +251,13 @@ func (p *Parser) ParseMapKeys(text string) (result map[string]string, parsed int
 	}
 	parsed = len([]rune(matchString)) + 4
 	return
+}
+
+// SetTrimChars updates the set of characters that are trimmed from applicable blocks.
+// 
+// The input variable represents a set of runes rather than a literal full match.
+func (p *Parser) SetTrimChars(text string) {
+	p.trimChars = text
 }
 
 var DefaultInstructions ParseInstructions = ParseInstructions{

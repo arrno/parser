@@ -143,7 +143,7 @@ fmt.Println(string(r))
 // [
 //     {
 //         "Content": "A link with dynamic attributes!",
-//         "Type": "s",
+//         "Type": "a",
 //         "href": "www.example.com",
 //         "dynamic": "value"
 //     }
