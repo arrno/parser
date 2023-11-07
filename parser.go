@@ -29,7 +29,7 @@ type Block struct {
 // Parser implements MarkupParser interface
 type Parser struct {
 	instructions []*Block
-	trimChars string
+	trimChars    string
 }
 
 // NewParser creates a new Parser and returns a pointer to it.
@@ -50,7 +50,7 @@ func NewParser(instructions ParseInstructions) *Parser {
 	}
 	p := Parser{
 		instructions: blocks,
-		trimChars: defaultTrimChars,
+		trimChars:    defaultTrimChars,
 	}
 	return &p
 }
@@ -101,7 +101,6 @@ func (p *Parser) handleParseStack(markup string) []map[string]any {
 
 	skipBy := 0
 
-	// for byteIndex, char := range markup {
 	for i := 0; i < len(markupRune); i++ {
 
 		char := markupRune[i]
@@ -144,7 +143,6 @@ func (p *Parser) handleParseStack(markup string) []map[string]any {
 							unmatchStart = startStop[1] + 1
 							contentSlice = append(contentSlice, stackBlock.inheritedContent.content[idx])
 						}
-						// 10
 						if unmatchStart < i-(len(block.BlockStop)) {
 							text := string(markupRune[unmatchStart : i-(len(blockStartRune))])
 							var subData map[string]any
@@ -254,7 +252,7 @@ func (p *Parser) ParseMapKeys(text string) (result map[string]string, parsed int
 }
 
 // SetTrimChars updates the set of characters that are trimmed from applicable blocks.
-// 
+//
 // The input variable represents a set of runes rather than a literal full match.
 func (p *Parser) SetTrimChars(text string) {
 	p.trimChars = text
