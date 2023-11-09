@@ -9,6 +9,15 @@ const (
 	defaultTrimChars string = " \n	"
 )
 
+type trimOpt uint
+
+const (
+	trimLeft trimOpt = iota
+	trimRight
+	trimAll
+	trimNewLine
+)
+
 // MarkupParser is something that is able to parse markup text into structured data.
 type MarkupParser interface {
 	DoParse(markup string) []map[string]any
@@ -137,7 +146,9 @@ func (p *Parser) handleParseStack(markup string) []map[string]any {
 							text := string(markupRune[unmatchStart:startStop[0]])
 							if unmatchStart < startStop[0] {
 								if block.Trim && idx == 0 {
-									text = strings.TrimLeft(text, p.trimChars)
+									text = p.handleTrim(text, trimLeft)
+								} else if block.Trim {
+									text = p.handleTrim(text, trimNewLine)
 								}
 								subData := map[string]any{
 									"Content": text,
@@ -153,7 +164,7 @@ func (p *Parser) handleParseStack(markup string) []map[string]any {
 							text := string(markupRune[unmatchStart : i-(len(blockStartRune))])
 							var subData map[string]any
 							if block.Trim {
-								text = strings.TrimRight(text, p.trimChars)
+								text = p.handleTrim(text, trimRight)
 							}
 							subData = map[string]any{
 								"Content": text,
@@ -166,7 +177,7 @@ func (p *Parser) handleParseStack(markup string) []map[string]any {
 					} else {
 						text := string(matchTextRune)
 						if block.Trim {
-							text = strings.Trim(text, p.trimChars)
+							text = p.handleTrim(text, trimAll)
 						}
 						data["Content"] = text
 					}
@@ -231,6 +242,34 @@ func (p *Parser) handleParseStack(markup string) []map[string]any {
 	return dataSet
 }
 
+func (p *Parser) handleTrim(text string, opt trimOpt) string {
+	lines := strings.Split(text, "\n")
+	nonEmptyLines := []string{}
+	// for _, line := range lines {
+	// 	if len(strings.Trim(line, p.trimChars)) > 0 {
+	// 		nonEmptyLines = append(nonEmptyLines, line)
+	// 	}
+	// }
+	for i, line := range lines {
+		if opt == trimAll {
+			line = strings.Trim(line, p.trimChars)
+		} else {
+			// only trim right excludes left most trim
+			if opt == trimLeft || i > 0 {
+				line = strings.TrimLeft(line, p.trimChars)
+			}
+			// only trim right excludes right most trim
+			if opt == trimRight || i < len(nonEmptyLines)-1 {
+				line = strings.TrimRight(line, p.trimChars)
+			}
+		}
+		if len(line) > 0 {
+			nonEmptyLines = append(nonEmptyLines, line)
+		}
+	}
+	return strings.Join(nonEmptyLines, " ")
+}
+
 // ParseMapKeys takes in a string and attempts to parse a key value pair
 // pattern at the beginning. If successful, the number of runes parsed is also
 // returned.
@@ -263,4 +302,3 @@ func (p *Parser) ParseMapKeys(text string) (result map[string]string, parsed int
 func (p *Parser) SetTrimChars(text string) {
 	p.trimChars = text
 }
-
