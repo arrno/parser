@@ -14,6 +14,10 @@ func TestParse(t *testing.T) {
 	r, err := json.MarshalIndent(d, "", "    ")
 	assert.Nil(t, err)
 	assert.Equal(t, expected, string(r))
+    d = parser.DoParse(wrapTrimMarkup)
+	r, err = json.MarshalIndent(d, "", "    ")
+	assert.Nil(t, err)
+	assert.Equal(t, wrapTrimExpected, string(r))
 }
 
 func TestMapKeys(t *testing.T) {
@@ -180,5 +184,109 @@ var expected string = `[
         ],
         "Type": "p",
         "injected": "content"
+    }
+]`
+
+// There may be room for improvement here... on the last scenario,
+// it's not possible for the author to indicate a space between the span at the end of the second line
+// and the text starting on the third line due to the combination of trimming, line break handling, 
+// and inherited content merging.
+
+var wrapTrimMarkup string = `
+<p> content about more content </p>
+<p>
+	 content about more 
+	 <span>some</span> content <span>some</span> that is about
+	 some content...
+</p>
+<p>
+	some content about more
+	content that is about
+	 some content...
+</p>
+<p>
+	<span>some</span> content about more
+	content that is about
+	 some content...<span>some</span>
+</p>
+<p>
+	 content about more
+	content <span>some</span> that is about <span>some</span>
+	 some content... 
+     <span>some</span>
+</p>
+`
+var wrapTrimExpected string = `[
+    {
+        "Content": "content about more content",
+        "Type": "p"
+    },
+    {
+        "Content": [
+            {
+                "Content": "content about more "
+            },
+            {
+                "Content": "some",
+                "Type": "s"
+            },
+            {
+                "Content": " content "
+            },
+            {
+                "Content": "some",
+                "Type": "s"
+            },
+            {
+                "Content": " that is about some content..."
+            }
+        ],
+        "Type": "p"
+    },
+    {
+        "Content": "some content about more content that is about some content...",
+        "Type": "p"
+    },
+    {
+        "Content": [
+            {
+                "Content": "some",
+                "Type": "s"
+            },
+            {
+                "Content": " content about more content that is about some content..."
+            },
+            {
+                "Content": "some",
+                "Type": "s"
+            }
+        ],
+        "Type": "p"
+    },
+    {
+        "Content": [
+            {
+                "Content": "content about more content "
+            },
+            {
+                "Content": "some",
+                "Type": "s"
+            },
+            {
+                "Content": " that is about "
+            },
+            {
+                "Content": "some",
+                "Type": "s"
+            },
+            {
+                "Content": "some content... "
+            },
+            {
+                "Content": "some",
+                "Type": "s"
+            }
+        ],
+        "Type": "p"
     }
 ]`
