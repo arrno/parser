@@ -28,6 +28,11 @@ func TestMapKeys(t *testing.T) {
 	assert.True(t, reflect.DeepEqual(result, expected))
 	result, parsed = parser.ParseMapKeys("hello!")
 	assert.Equal(t, parsed, 0)
+
+	result, parsed = parser.ParseMapKeys("::[ href: https://www.rebug.com ]")
+	expected = map[string]string{"href": "https://www.rebug.com"}
+	assert.Equal(t, parsed, 33)
+	assert.True(t, reflect.DeepEqual(result, expected))
 }
 
 var markup string = `

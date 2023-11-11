@@ -288,8 +288,8 @@ func (p *Parser) ParseMapKeys(text string) (result map[string]string, parsed int
 	}
 	keyPairs := strings.Split(string(matchString), ",")
 	for _, keyPair := range keyPairs {
-		if keyVal := strings.Split(keyPair, ":"); len(keyVal) == 2 {
-			result[strings.TrimSpace(keyVal[0])] = strings.TrimSpace(keyVal[1])
+		if keyVal := strings.Split(keyPair, ":"); len(keyVal) > 1 {
+			result[strings.TrimSpace(keyVal[0])] = strings.TrimSpace(strings.Join(keyVal[1:], ":"))
 		}
 	}
 	parsed = len([]rune(matchString)) + 4
